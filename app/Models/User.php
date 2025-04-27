@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 
 class User extends Authenticatable
@@ -46,5 +48,40 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the projects created by the user.
+     */
+    public function createdProjects(): HasMany
+    {
+        return $this->hasMany(Project::class);
+    }
+
+    /**
+     * Get the projects where the user is a collaborator.
+     */
+    public function projects(): BelongsToMany
+    {
+        return $this->belongsToMany(Project::class)
+                    ->using(ProjectUser::class)
+                    ->withPivot('role')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the items created by the user.
+     */
+    public function items(): HasMany
+    {
+        return $this->hasMany(Item::class);
+    }
+
+    /**
+     * Get the items assigned to the user.
+     */
+    public function assignedItems(): HasMany
+    {
+        return $this->hasMany(Item::class, 'assigned_to');
     }
 }
