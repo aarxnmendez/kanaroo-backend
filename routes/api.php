@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\VerifyEmailController;
+use App\Http\Controllers\Api\ProjectController;
 
 // Public API routes (no authentication required)
 Route::post('/login', [AuthenticatedSessionController::class, 'store']);
@@ -22,8 +23,11 @@ Route::get('/verify-email/{id}/{hash}', VerifyEmailController::class)
 
 // Protected routes with Sanctum
 Route::middleware('auth:sanctum')->group(function () {
+    // Authentication routes
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy']);
     Route::post('/email/verification-notification', [EmailVerificationNotificationController::class, 'store']);
     Route::get('/user', AuthenticatedUserController::class);
-});
 
+    // Project routes
+    Route::apiResource('projects', ProjectController::class);
+});
