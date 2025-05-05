@@ -17,6 +17,9 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->timestamps();
+
+            // Composite unique index: name + user
+            $table->unique(['name', 'user_id']);
         });
     }
 
