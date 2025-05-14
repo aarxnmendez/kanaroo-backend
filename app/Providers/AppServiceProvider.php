@@ -2,12 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\Project;
+use App\Models\Section;
+use App\Policies\ProjectPolicy;
+use App\Policies\SectionPolicy;
 use App\Repositories\ProjectRepository;
 use App\Repositories\ProjectRepositoryInterface;
+use App\Repositories\SectionRepository;
+use App\Repositories\SectionRepositoryInterface;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
-use App\Models\Project;
-use App\Policies\ProjectPolicy;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -18,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Register repositories
         $this->app->bind(ProjectRepositoryInterface::class, ProjectRepository::class);
+        $this->app->bind(SectionRepositoryInterface::class, SectionRepository::class);
     }
 
     /**
@@ -30,6 +36,9 @@ class AppServiceProvider extends ServiceProvider
         });
 
         // Register Project Policy
-        \Illuminate\Support\Facades\Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+
+        // Register Section Policy
+        Gate::policy(Section::class, SectionPolicy::class);
     }
 }
