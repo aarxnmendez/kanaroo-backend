@@ -9,7 +9,7 @@ use App\Http\Resources\ProjectResource;
 use App\Models\Project;
 use App\Repositories\ProjectRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
@@ -32,8 +32,8 @@ class ProjectController extends Controller
      */
     public function index(): AnonymousResourceCollection
     {
+        $this->authorize('viewAny', Project::class);
         $projects = $this->projectRepository->getAllForUser(Auth::id());
-
         return ProjectResource::collection($projects);
     }
 
@@ -82,12 +82,12 @@ class ProjectController extends Controller
     /**
      * DELETE /projects/{id} - delete a project
      */
-    public function destroy(Project $project): JsonResponse
+    public function destroy(Project $project): Response
     {
         // Check authorization using policy
         $this->authorize('delete', $project);
 
         $this->projectRepository->delete($project);
-        return response()->json(['message' => __('errors.project_deleted')]);
+        return response()->noContent(); // Return 204 No Content for successful deletion.
     }
 }

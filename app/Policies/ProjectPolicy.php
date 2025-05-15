@@ -9,6 +9,16 @@ use Illuminate\Auth\Access\Response;
 class ProjectPolicy
 {
     /**
+     * Determine whether the user can view any models.
+     */
+    public function viewAny(User $user): bool
+    {
+        // Any authenticated user can attempt to list projects;
+        // the repository will filter them accordingly.
+        return true;
+    }
+
+    /**
      * Determine whether the user can create models.
      */
     public function create(User $user): bool|Response
