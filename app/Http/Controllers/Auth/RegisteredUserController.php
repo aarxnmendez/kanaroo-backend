@@ -38,7 +38,7 @@ class RegisteredUserController extends Controller
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'User registered successfully.',
+            'message' => __('messages.user_registered_successfully'),
             'user' => $user,
             'token' => $token,
         ], 201);
