@@ -27,6 +27,7 @@ return [
     'not_authorized_view' => 'No está autorizado para ver este recurso',
     'not_authorized_update' => 'No está autorizado para actualizar este recurso',
     'not_authorized_delete' => 'No está autorizado para eliminar este recurso',
+    'not_authorized_create' => 'No está autorizado para crear este recurso',
 
     // Mensajes de éxito
     'project_deleted' => 'Proyecto eliminado correctamente',

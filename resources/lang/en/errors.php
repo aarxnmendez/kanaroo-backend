@@ -27,6 +27,7 @@ return [
     'not_authorized_view' => 'Not authorized to view this resource',
     'not_authorized_update' => 'Not authorized to update this resource',
     'not_authorized_delete' => 'Not authorized to delete this resource',
+    'not_authorized_create' => 'Not authorized to create this resource',
 
     // Success messages
     'project_deleted' => 'Project deleted successfully',
