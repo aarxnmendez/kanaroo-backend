@@ -36,8 +36,7 @@ class SectionController extends Controller
      */
     public function index(Project $project): AnonymousResourceCollection
     {
-        // Authorization implicitly assumes if user can access project, they can list its sections.
-        // Consider $this->authorize('view', $project); for explicit project view authorization.
+        $this->authorize('view', $project); // Explicitly authorize viewing the parent project
         $sections = $this->sectionRepository->getAllForProject($project);
         return SectionResource::collection($sections);
     }
