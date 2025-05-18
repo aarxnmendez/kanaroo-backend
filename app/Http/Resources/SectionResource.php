@@ -10,6 +10,7 @@ class SectionResource extends JsonResource
     /**
      * Transform the resource into an array.
      *
+     * @param  Request  $request
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
@@ -22,8 +23,8 @@ class SectionResource extends JsonResource
             'filter_value' => $this->filter_value,
             'item_limit' => $this->item_limit,
             'project_id' => $this->project_id,
-            // 'items' => ItemResource::collection($this->whenLoaded('items')),
-            // 'items_count' => $this->whenCounted('items'),
+            // 'items' => ItemResource::collection($this->whenLoaded('items')), // Full item details, pending ItemResource implementation
+            'items_count' => $this->whenCounted('items'), // Total count of items in this section
             'created_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];

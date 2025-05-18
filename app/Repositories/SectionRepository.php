@@ -12,12 +12,13 @@ use Exception;
 class SectionRepository implements SectionRepositoryInterface
 {
     /**
-     * Get all sections for a specific project
+     * Get all sections for a specific project, ordered by position and with item counts.
      */
     public function getAllForProject(Project $project): Collection
     {
         try {
             return $project->sections()
+                ->withCount('items')
                 ->orderBy('position')
                 ->get();
         } catch (Exception $e) {
@@ -27,7 +28,8 @@ class SectionRepository implements SectionRepositoryInterface
     }
 
     /**
-     * Create a new section
+     * Create a new section for a given project.
+     * The position is automatically determined.
      */
     public function create(array $data, Project $project): Section
     {
@@ -48,12 +50,12 @@ class SectionRepository implements SectionRepositoryInterface
     }
 
     /**
-     * Find a section by its ID
+     * Find a section by its ID, including the count of its items.
      */
     public function findById(int $id): ?Section
     {
         try {
-            return Section::find($id);
+            return Section::withCount('items')->find($id);
         } catch (Exception $e) {
             Log::error('Error finding section: ' . $e->getMessage());
             throw $e;
@@ -61,7 +63,7 @@ class SectionRepository implements SectionRepositoryInterface
     }
 
     /**
-     * Update a section
+     * Update an existing section.
      */
     public function update(Section $section, array $data): Section
     {
@@ -75,7 +77,7 @@ class SectionRepository implements SectionRepositoryInterface
     }
 
     /**
-     * Delete a section
+     * Delete a section.
      */
     public function delete(Section $section): bool
     {
@@ -88,7 +90,9 @@ class SectionRepository implements SectionRepositoryInterface
     }
 
     /**
-     * Reorder sections in a project
+     * Reorder sections within a project based on an array of ordered section IDs.
+     * Uses a database transaction to ensure atomicity.
+     * Returns the reordered collection of sections with item counts.
      */
     public function reorder(Project $project, array $orderedIds): Collection
     {
@@ -110,7 +114,11 @@ class SectionRepository implements SectionRepositoryInterface
                 }
             });
 
-            return $project->sections()->orderBy('position')->get();
+            // Reload sections with item counts after reordering
+            return $project->sections()
+                ->withCount('items')
+                ->orderBy('position')
+                ->get();
         } catch (Exception $e) {
             Log::error('Error reordering sections: ' . $e->getMessage());
             throw $e;
