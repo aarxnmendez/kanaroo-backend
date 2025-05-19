@@ -11,19 +11,17 @@ use App\Models\Project;
 use App\Models\Section;
 use App\Repositories\SectionRepositoryInterface;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
-use Illuminate\Support\Facades\Auth; // Aunque no se use directamente en todos los métodos, es común tenerlo
 use Illuminate\Http\Response;
 
 class SectionController extends Controller
 {
-    use AuthorizesRequests; // Habilita $this->authorize()
+    use AuthorizesRequests;
 
     protected SectionRepositoryInterface $sectionRepository;
 
     /**
-     * Constructor con inyección de dependencias.
+     * Constructor for dependency injection.
      */
     public function __construct(SectionRepositoryInterface $sectionRepository)
     {
@@ -31,52 +29,61 @@ class SectionController extends Controller
     }
 
     /**
+     * Display a listing of sections for a specific project.
      * GET /projects/{project}/sections
-     * Muestra una lista de todas las secciones para un proyecto específico.
      */
     public function index(Project $project): AnonymousResourceCollection
     {
-        $this->authorize('view', $project); // Explicitly authorize viewing the parent project
+        $this->authorize('view', $project); // Authorize viewing the parent project
         $sections = $this->sectionRepository->getAllForProject($project);
         return SectionResource::collection($sections);
     }
 
     /**
+     * Store a newly created section for a specific project.
      * POST /projects/{project}/sections
-     * Crea una nueva sección para un proyecto específico.
      */
     public function store(StoreSectionRequest $request, Project $project): SectionResource
     {
-        // Authorize based on the user's ability to update the parent project.
-        $this->authorize('update', $project);
+        $this->authorize('update', $project); // Authorize based on ability to update parent project
         $section = $this->sectionRepository->create($request->validated(), $project);
         return new SectionResource($section);
     }
 
     /**
-     * GET /projects/{project}/sections/{section}
-     * Muestra una sección específica.
+     * Display the specified section.
+     * GET /sections/{section} (shallow)
+     * or /projects/{project}/sections/{section}
      */
     public function show(Project $project, Section $section): SectionResource
     {
         $this->authorize('view', $section);
-        return new SectionResource($section);
+        // Fetch via repository to ensure consistent data loading (items, counts)
+        $loadedSection = $this->sectionRepository->findById($section->id);
+        if (!$loadedSection) {
+            // Should not happen if Route Model Binding and policy checks passed,
+            // but as a safeguard or if findById can return null for other reasons.
+            abort(404, 'Section not found.');
+        }
+        return new SectionResource($loadedSection);
     }
 
     /**
-     * PUT/PATCH /projects/{project}/sections/{section}
-     * Actualiza una sección específica.
+     * Update the specified section.
+     * PUT/PATCH /sections/{section} (shallow)
+     * or /projects/{project}/sections/{section}
      */
     public function update(UpdateSectionRequest $request, Project $project, Section $section): SectionResource
     {
         $this->authorize('update', $section);
-        $section = $this->sectionRepository->update($section, $request->validated());
-        return new SectionResource($section);
+        $updatedSection = $this->sectionRepository->update($section, $request->validated());
+        return new SectionResource($updatedSection);
     }
 
     /**
-     * DELETE /projects/{project}/sections/{section}
-     * Elimina una sección específica.
+     * Remove the specified section.
+     * DELETE /sections/{section} (shallow)
+     * or /projects/{project}/sections/{section}
      */
     public function destroy(Project $project, Section $section): Response
     {
@@ -86,13 +93,12 @@ class SectionController extends Controller
     }
 
     /**
-     * POST /projects/{project}/sections/reorder  (o PATCH /projects/{project}/sections)
-     * Reordena las secciones de un proyecto.
+     * Reorder sections within a project.
+     * POST /projects/{project}/sections/reorder
      */
     public function reorder(ReorderSectionsRequest $request, Project $project): AnonymousResourceCollection
     {
-        // Authorize based on the user's ability to update the parent project.
-        $this->authorize('update', $project);
+        $this->authorize('update', $project); // Authorize based on ability to update parent project
         $sections = $this->sectionRepository->reorder($project, $request->validated()['ordered_ids']);
         return SectionResource::collection($sections);
     }
