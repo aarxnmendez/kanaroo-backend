@@ -8,55 +8,132 @@ use Illuminate\Auth\Access\Response;
 
 class ProjectPolicy
 {
+    // Roles definition (conceptual, used in logic below)
+    public const ROLE_OWNER = 'owner';
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_EDITOR = 'editor';
+    public const ROLE_MEMBER = 'member';
+
     /**
      * Determine whether the user can view any models.
+     * Any authenticated user can attempt to list projects;
+     * the repository will filter them accordingly.
      */
     public function viewAny(User $user): bool
     {
-        // Any authenticated user can attempt to list projects;
-        // the repository will filter them accordingly.
         return true;
     }
 
     /**
      * Determine whether the user can create models.
+     * Any authenticated user can create projects.
      */
-    public function create(User $user): bool|Response
+    public function create(User $user): bool
     {
-        // Any authenticated user can create projects
         return true;
+    }
+
+    /**
+     * Helper function to get user's role in a project.
+     */
+    private function getRole(User $user, Project $project): ?string
+    {
+        if ($user->id === $project->user_id) { // Creator is always owner
+            return self::ROLE_OWNER;
+        }
+        $projectUser = $project->users()->where('user_id', $user->id)->first();
+        return $projectUser ? $projectUser->pivot->role : null;
     }
 
     /**
      * Determine whether the user can view the model.
      */
-    public function view(User $user, Project $project): bool|Response
+    public function view(User $user, Project $project): bool
     {
-        // Allow viewing if the user is the owner or a collaborator
-        return $user->id === $project->user_id || $project->users->contains($user->id)
-            ? true
-            : Response::deny(__('errors.not_authorized_view'));
+        $role = $this->getRole($user, $project);
+        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR, self::ROLE_MEMBER]);
     }
 
     /**
      * Determine whether the user can update the model.
+     * Owner or Admin can update.
      */
-    public function update(User $user, Project $project): bool|Response
+    public function update(User $user, Project $project): bool
     {
-        // Only the owner can update
-        return $user->id === $project->user_id
-            ? true
-            : Response::deny(__('errors.not_authorized_update'));
+        $role = $this->getRole($user, $project);
+        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN]);
     }
 
     /**
      * Determine whether the user can delete the model.
+     * Only Owner can delete.
      */
-    public function delete(User $user, Project $project): bool|Response
+    public function delete(User $user, Project $project): bool
     {
-        // Only the owner can delete
-        return $user->id === $project->user_id
-            ? true
-            : Response::deny(__('errors.not_authorized_delete'));
+        return $this->getRole($user, $project) === self::ROLE_OWNER;
+    }
+
+    /**
+     * Determine whether the user can add members to the project.
+     * Owner or Admin can add members.
+     */
+    public function addMember(User $user, Project $project): bool
+    {
+        $role = $this->getRole($user, $project);
+        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN]);
+    }
+
+    /**
+     * Determine whether the user can update a member's role in the project.
+     * Owner or Admin can update roles.
+     * Cannot change role of the owner.
+     * Cannot change own role if admin (owner should do it or another admin).
+     */
+    public function updateMemberRole(User $user, Project $project, User $memberToUpdate): bool
+    {
+        $actorRole = $this->getRole($user, $project);
+        $targetMemberRole = $this->getRole($memberToUpdate, $project);
+
+        if (!in_array($actorRole, [self::ROLE_OWNER, self::ROLE_ADMIN])) {
+            return false; // Only owner/admin can update roles
+        }
+
+        if ($memberToUpdate->id === $project->user_id && $targetMemberRole === self::ROLE_OWNER) {
+            return false; // Cannot change role of the project owner
+        }
+
+        // Admins cannot change their own role to prevent self-lockout or unauthorized privilege escalation.
+        if ($actorRole === self::ROLE_ADMIN && $user->id === $memberToUpdate->id) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Determine whether the user can remove members from the project.
+     * Owner or Admin can remove members.
+     * Cannot remove the owner.
+     * Admins cannot remove themselves (owner or another admin should do it).
+     */
+    public function removeMember(User $user, Project $project, User $memberToRemove): bool
+    {
+        $actorRole = $this->getRole($user, $project);
+        $targetMemberRole = $this->getRole($memberToRemove, $project);
+
+        if (!in_array($actorRole, [self::ROLE_OWNER, self::ROLE_ADMIN])) {
+            return false; // Only owner/admin can remove
+        }
+
+        if ($memberToRemove->id === $project->user_id && $targetMemberRole === self::ROLE_OWNER) {
+            return false; // Cannot remove the project owner
+        }
+
+        // Admins cannot remove themselves.
+        if ($actorRole === self::ROLE_ADMIN && $user->id === $memberToRemove->id) {
+            return false;
+        }
+
+        return true;
     }
 }
