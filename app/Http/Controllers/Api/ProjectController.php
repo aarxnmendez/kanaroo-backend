@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Response;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use App\Http\Requests\Projects\AddProjectMemberRequest;
+use App\Http\Requests\Projects\UpdateProjectMemberRoleRequest;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 
 class ProjectController extends Controller
 {
@@ -28,7 +32,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * GET /projects - list authenticated user's projects
+     * Display a listing of the user's projects.
      */
     public function index(): AnonymousResourceCollection
     {
@@ -38,7 +42,7 @@ class ProjectController extends Controller
     }
 
     /**
-     * POST /projects - create new project
+     * Store a newly created project.
      */
     public function store(StoreProjectRequest $request): ProjectResource
     {
@@ -55,19 +59,20 @@ class ProjectController extends Controller
     }
 
     /**
-     * GET /projects/{id} - show a single project
+     * Display the specified project.
      */
     public function show(Project $project): ProjectResource
     {
         // Check authorization using policy
         $this->authorize('view', $project);
 
-        $project = $this->projectRepository->loadRelationships($project);
-        return new ProjectResource($project);
+        // Ensure all necessary relationships are loaded for the resource.
+        $projectWithRelations = $this->projectRepository->loadRelationships($project);
+        return new ProjectResource($projectWithRelations);
     }
 
     /**
-     * PUT /projects/{id} - update a project
+     * Update the specified project.
      */
     public function update(UpdateProjectRequest $request, Project $project): ProjectResource
     {
@@ -75,12 +80,12 @@ class ProjectController extends Controller
         $this->authorize('update', $project);
 
         // Update with validated data
-        $project = $this->projectRepository->update($project, $request->validated());
-        return new ProjectResource($project);
+        $updatedProject = $this->projectRepository->update($project, $request->validated());
+        return new ProjectResource($updatedProject);
     }
 
     /**
-     * DELETE /projects/{id} - delete a project
+     * Remove the specified project.
      */
     public function destroy(Project $project): Response
     {
@@ -89,5 +94,59 @@ class ProjectController extends Controller
 
         $this->projectRepository->delete($project);
         return response()->noContent(); // Return 204 No Content for successful deletion.
+    }
+
+    /**
+     * Add a member to the project.
+     * POST /projects/{project}/members
+     */
+    public function addMember(AddProjectMemberRequest $request, Project $project): JsonResponse
+    {
+        $this->authorize('addMember', $project);
+
+        $validatedData = $request->validated();
+        $result = $this->projectRepository->addMember($project, $validatedData['user_id'], $validatedData['role']);
+
+        if ($result) {
+            // Reload the project with updated members to return in response
+            $projectWithRelations = $this->projectRepository->loadRelationships($project->fresh());
+            return response()->json(new ProjectResource($projectWithRelations), Response::HTTP_OK);
+        }
+        return response()->json(['message' => __('api.project_member.add_conflict')], Response::HTTP_CONFLICT);
+    }
+
+    /**
+     * Update a member's role in the project.
+     * PATCH /projects/{project}/members/{user}
+     */
+    public function updateMemberRole(UpdateProjectMemberRoleRequest $request, Project $project, User $user): JsonResponse
+    {
+        $this->authorize('updateMemberRole', [$project, $user]);
+
+        $validatedData = $request->validated();
+        $result = $this->projectRepository->updateMemberRole($project, $user->id, $validatedData['role']);
+
+        if ($result) {
+            $projectWithRelations = $this->projectRepository->loadRelationships($project->fresh());
+            return response()->json(new ProjectResource($projectWithRelations), Response::HTTP_OK);
+        }
+        return response()->json(['message' => __('api.project_member.update_role_failed')], Response::HTTP_BAD_REQUEST);
+    }
+
+    /**
+     * Remove a member from the project.
+     * DELETE /projects/{project}/members/{user}
+     */
+    public function removeMember(Project $project, User $user): JsonResponse
+    {
+        $this->authorize('removeMember', [$project, $user]);
+
+        $result = $this->projectRepository->removeMember($project, $user->id);
+
+        if ($result) {
+            $projectWithRelations = $this->projectRepository->loadRelationships($project->fresh());
+            return response()->json(new ProjectResource($projectWithRelations), Response::HTTP_OK);
+        }
+        return response()->json(['message' => __('api.project_member.remove_failed')], Response::HTTP_BAD_REQUEST);
     }
 }
