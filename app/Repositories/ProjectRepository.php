@@ -7,11 +7,13 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Exception;
+use App\Policies\ProjectPolicy;
 
 class ProjectRepository implements ProjectRepositoryInterface
 {
     /**
-     * Get all projects for a specific user with pagination
+     * Get all projects for a specific user with pagination.
+     * Orders by creation date descending.
      */
     public function getAllForUser(int $userId, int $perPage = 15): LengthAwarePaginator
     {
@@ -20,7 +22,8 @@ class ProjectRepository implements ProjectRepositoryInterface
                 ->orWhereHas('users', function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 })
-                ->with(['users'])
+                ->with(['users', 'user'])
+                ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         } catch (Exception $e) {
             Log::error('Error fetching user projects: ' . $e->getMessage());
@@ -29,7 +32,8 @@ class ProjectRepository implements ProjectRepositoryInterface
     }
 
     /**
-     * Create a new project
+     * Create a new project.
+     * Creator is automatically added as 'owner'.
      */
     public function create(array $data, int $userId): Project
     {
@@ -40,9 +44,7 @@ class ProjectRepository implements ProjectRepositoryInterface
                 'user_id' => $userId,
             ]);
 
-            // Add user as a member with 'owner' role
-            $project->users()->attach($userId, ['role' => 'owner']);
-
+            $project->users()->attach($userId, ['role' => ProjectPolicy::ROLE_OWNER]);
             return $this->loadRelationships($project);
         } catch (Exception $e) {
             Log::error('Error creating project: ' . $e->getMessage());
@@ -51,26 +53,21 @@ class ProjectRepository implements ProjectRepositoryInterface
     }
 
     /**
-     * Find a project by its ID
+     * Find a project by its ID, with standard relationships loaded.
      */
     public function findById(int $id): ?Project
     {
         try {
             $project = Project::find($id);
-
-            if ($project) {
-                return $this->loadRelationships($project);
-            }
-
-            return null;
+            return $project ? $this->loadRelationships($project) : null;
         } catch (Exception $e) {
-            Log::error('Error finding project: ' . $e->getMessage());
+            Log::error("Error finding project {$id}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Update a project
+     * Update a project, with standard relationships reloaded.
      */
     public function update(Project $project, array $data): Project
     {
@@ -78,33 +75,98 @@ class ProjectRepository implements ProjectRepositoryInterface
             $project->update($data);
             return $this->loadRelationships($project);
         } catch (Exception $e) {
-            Log::error('Error updating project: ' . $e->getMessage());
+            Log::error("Error updating project {$project->id}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Delete a project
+     * Delete a project.
+     * Relies on DB cascades or model events for related data.
      */
     public function delete(Project $project): bool
     {
         try {
             return $project->delete();
         } catch (Exception $e) {
-            Log::error('Error deleting project: ' . $e->getMessage());
+            Log::error("Error deleting project {$project->id}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Load standard relationships for a project
+     * Load standard relationships for a project (creator, members, sections, counts).
      */
     public function loadRelationships(Project $project): Project
     {
         try {
-            return $project->load(['users', 'user']);
+            return $project->loadMissing(['user', 'users', 'sections'])
+                ->loadCount(['sections', 'items']);
         } catch (Exception $e) {
-            Log::error('Error loading project relationships: ' . $e->getMessage());
+            Log::error("Error loading relationships for project {$project->id}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Add a member to a project.
+     * Role validation should be handled by FormRequest.
+     */
+    public function addMember(Project $project, int $userId, string $role): bool
+    {
+        try {
+            if ($project->users()->where('user_id', $userId)->exists()) {
+                Log::info("Attempted to add existing member {$userId} to project {$project->id}.");
+                return false; // User is already a member
+            }
+            $project->users()->attach($userId, ['role' => $role]);
+            return true;
+        } catch (Exception $e) {
+            Log::error("Error adding member {$userId} to project {$project->id}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Update a member's role in a project.
+     * Role validation should be handled by FormRequest.
+     * Prevents changing owner's role via this method.
+     */
+    public function updateMemberRole(Project $project, int $userId, string $role): bool
+    {
+        try {
+            if (!$project->users()->where('user_id', $userId)->exists()) {
+                Log::info("Attempted to update role for non-member {$userId} in project {$project->id}.");
+                return false; // User not a member
+            }
+
+            if ($project->user_id === $userId && $role !== ProjectPolicy::ROLE_OWNER) {
+                Log::warning("Attempt to change project owner's role via repository for project {$project->id}, user {$userId}");
+                return false;
+            }
+            $project->users()->updateExistingPivot($userId, ['role' => $role]);
+            return true;
+        } catch (Exception $e) {
+            Log::error("Error updating member role for user {$userId} in project {$project->id}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Remove a member from a project.
+     * Prevents removing the project owner.
+     */
+    public function removeMember(Project $project, int $userId): bool
+    {
+        try {
+            if ($project->user_id === $userId) {
+                Log::warning("Attempt to remove project owner {$userId} from project {$project->id} via repository.");
+                return false;
+            }
+            $detachedCount = $project->users()->detach($userId);
+            return $detachedCount > 0;
+        } catch (Exception $e) {
+            Log::error("Error removing member {$userId} from project {$project->id}: " . $e->getMessage());
             throw $e;
         }
     }

@@ -37,4 +37,19 @@ interface ProjectRepositoryInterface
      * Load standard relationships for a project
      */
     public function loadRelationships(Project $project): Project;
+
+    /**
+     * Add a member to a project with a specific role.
+     */
+    public function addMember(Project $project, int $userId, string $role): bool;
+
+    /**
+     * Update a member's role in a project.
+     */
+    public function updateMemberRole(Project $project, int $userId, string $role): bool;
+
+    /**
+     * Remove a member from a project.
+     */
+    public function removeMember(Project $project, int $userId): bool;
 }
