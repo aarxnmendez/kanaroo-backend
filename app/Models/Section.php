@@ -28,6 +28,16 @@ class Section extends Model
     ];
 
     /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'filter_value' => 'array', // For JSON filter criteria
+        'item_limit' => 'integer',
+    ];
+
+    /**
      * Get the project that owns the section.
      */
     public function project(): BelongsTo
@@ -65,27 +75,35 @@ class Section extends Model
         } elseif ($this->filter_type === 'date' && $this->filter_value) {
             try {
                 // Ensure $this->filter_value is a string before decoding
-                $dateFilters = json_decode(is_string($this->filter_value) ? $this->filter_value : '{}', true, 512, JSON_THROW_ON_ERROR);
+                // $casts property now handles decoding of filter_value to array automatically if it's JSON
+                $dateFilters = $this->filter_value; // Already an array due to $casts
 
-                if (isset($dateFilters['due_on'])) {
-                    $query->whereDate('due_date', $dateFilters['due_on']);
-                } elseif (isset($dateFilters['due_between']['start']) && isset($dateFilters['due_between']['end'])) {
-                    $query->whereBetween('due_date', [$dateFilters['due_between']['start'], $dateFilters['due_between']['end']]);
-                } elseif (isset($dateFilters['due_after'])) {
-                    $query->whereDate('due_date', '>=', $dateFilters['due_after']);
-                } elseif (isset($dateFilters['due_before'])) {
-                    $query->whereDate('due_date', '<=', $dateFilters['due_before']);
-                } elseif (isset($dateFilters['is_null']) && $dateFilters['is_null'] === true) {
-                    $query->whereNull('due_date');
-                } elseif (isset($dateFilters['is_not_null']) && $dateFilters['is_not_null'] === true) {
-                    $query->whereNotNull('due_date');
-                } elseif (isset($dateFilters['overdue']) && $dateFilters['overdue'] === true) {
-                    $query->whereDate('due_date', '<', now()->toDateString())
-                        ->whereNotIn('status', ['done', 'archived']); // Assuming final states
+                if ($this->filter_type === 'date' && is_array($dateFilters)) { // Check if it is an array after casting
+                    if (isset($dateFilters['due_on'])) {
+                        $query->whereDate('due_date', $dateFilters['due_on']);
+                    } elseif (isset($dateFilters['due_between']['start']) && isset($dateFilters['due_between']['end'])) {
+                        $query->whereBetween('due_date', [$dateFilters['due_between']['start'], $dateFilters['due_between']['end']]);
+                    } elseif (isset($dateFilters['due_after'])) {
+                        $query->whereDate('due_date', '>=', $dateFilters['due_after']);
+                    } elseif (isset($dateFilters['due_before'])) {
+                        $query->whereDate('due_date', '<=', $dateFilters['due_before']);
+                    } elseif (isset($dateFilters['is_null']) && $dateFilters['is_null'] === true) {
+                        $query->whereNull('due_date');
+                    } elseif (isset($dateFilters['is_not_null']) && $dateFilters['is_not_null'] === true) {
+                        $query->whereNotNull('due_date');
+                    } elseif (isset($dateFilters['overdue']) && $dateFilters['overdue'] === true) {
+                        $query->whereDate('due_date', '<', now()->toDateString())
+                            ->whereNotIn('status', ['done', 'archived']);
+                    }
                 }
-            } catch (JsonException $e) {
-                Log::error("Error decoding date filter for section {$this->id}: " . $e->getMessage());
+            } catch (JsonException $e) { // This catch might be less relevant if $casts handles initial JSON issues
+                Log::error("Error processing date filter for section {$this->id}: " . $e->getMessage());
             }
+        }
+
+        // Apply item limit if set
+        if ($this->item_limit && $this->item_limit > 0) {
+            $query->limit($this->item_limit);
         }
 
         return $query->orderBy('position');
