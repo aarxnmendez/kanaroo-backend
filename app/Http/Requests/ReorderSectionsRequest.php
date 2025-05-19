@@ -26,4 +26,20 @@ class ReorderSectionsRequest extends FormRequest
             'ordered_ids.*' => ['required', 'integer', 'exists:sections,id'],
         ];
     }
+
+    /**
+     * Get custom messages for validator errors.
+     *
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'ordered_ids.required' => __('validation.reorder.section_ids_required'),
+            'ordered_ids.array'    => __('validation.reorder.section_ids_array'),
+            'ordered_ids.*.required' => __('validation.reorder.section_id_required'),
+            'ordered_ids.*.integer'  => __('validation.reorder.section_id_integer'),
+            'ordered_ids.*.exists'   => __('validation.reorder.section_id_exists'),
+        ];
+    }
 }
