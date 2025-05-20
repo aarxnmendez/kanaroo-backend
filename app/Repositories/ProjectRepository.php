@@ -3,11 +3,11 @@
 namespace App\Repositories;
 
 use App\Models\Project;
+use App\Models\ProjectUser; // Added for ROLE_ constants
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Exception;
-use App\Policies\ProjectPolicy;
 
 class ProjectRepository implements ProjectRepositoryInterface
 {
@@ -44,7 +44,7 @@ class ProjectRepository implements ProjectRepositoryInterface
                 'user_id' => $userId,
             ]);
 
-            $project->users()->attach($userId, ['role' => ProjectPolicy::ROLE_OWNER]);
+            $project->users()->attach($userId, ['role' => ProjectUser::ROLE_OWNER]);
             return $this->loadRelationships($project);
         } catch (Exception $e) {
             Log::error('Error creating project: ' . $e->getMessage());
@@ -140,7 +140,7 @@ class ProjectRepository implements ProjectRepositoryInterface
                 return false; // User not a member
             }
 
-            if ($project->user_id === $userId && $role !== ProjectPolicy::ROLE_OWNER) {
+            if ($project->user_id === $userId && $role !== ProjectUser::ROLE_OWNER) {
                 Log::warning("Attempt to change project owner's role via repository for project {$project->id}, user {$userId}");
                 return false;
             }
@@ -168,6 +168,30 @@ class ProjectRepository implements ProjectRepositoryInterface
         } catch (Exception $e) {
             Log::error("Error removing member {$userId} from project {$project->id}: " . $e->getMessage());
             throw $e;
+        }
+    }
+
+    /**
+     * Allows a user to leave a project.
+     * Detaches the user from the project's 'users' relationship.
+     */
+    public function userLeaveProject(Project $project, int $userId): bool
+    {
+        try {
+            // The project owner cannot be detached via this method.
+            // This should ideally be caught by policy, but as a safeguard:
+            if ($project->user_id === $userId) {
+                Log::warning("Attempt to detach project owner {$userId} from project {$project->id} via userLeaveProject method.");
+                return false;
+            }
+            
+            // The detach method returns the number of detached records.
+            // If > 0, it means the user was successfully detached.
+            $detachedCount = $project->users()->detach($userId);
+            return $detachedCount > 0;
+        } catch (Exception $e) {
+            Log::error("Error detaching user {$userId} from project {$project->id}: " . $e->getMessage());
+            throw $e; // Or return false if you don't want to rethrow
         }
     }
 }

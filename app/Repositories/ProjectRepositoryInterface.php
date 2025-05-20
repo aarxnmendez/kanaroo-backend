@@ -52,4 +52,9 @@ interface ProjectRepositoryInterface
      * Remove a member from a project.
      */
     public function removeMember(Project $project, int $userId): bool;
+
+    /**
+     * Allows a user to leave a project.
+     */
+    public function userLeaveProject(Project $project, int $userId): bool;
 }

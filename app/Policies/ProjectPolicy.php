@@ -128,6 +128,23 @@ class ProjectPolicy
     }
 
     /**
+     * Determine whether the user can leave the project.
+     * Any member can leave, except the owner.
+     */
+    public function leave(User $user, Project $project): bool
+    {
+        // The project owner cannot leave the project.
+        // They must transfer ownership or delete the project.
+        if ($user->id === $project->user_id) {
+            return false;
+        }
+
+        // Any other authenticated user who is part of the project (implicitly checked by policy system)
+        // and is not the owner can leave.
+        return true;
+    }
+
+    /**
      * Determine whether the user can manage content within the project (e.g., create items, sections, tags).
      * Owner, Admin, or Editor can manage content.
      */

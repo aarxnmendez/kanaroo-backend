@@ -149,4 +149,25 @@ class ProjectController extends Controller
         }
         return response()->json(['message' => __('api.project_member.remove_failed')], Response::HTTP_BAD_REQUEST);
     }
+
+    /**
+     * Allows the authenticated user to leave the specified project.
+     * DELETE /projects/{project}/leave
+     */
+    public function leave(Project $project): JsonResponse
+    {
+        $this->authorize('leave', $project);
+
+        $result = $this->projectRepository->userLeaveProject($project, Auth::id());
+
+        if ($result) {
+            return response()->json(['message' => __('User successfully left the project.')], Response::HTTP_OK);
+            // Or, if you prefer not to return content:
+            // return response()->noContent(); 
+        }
+
+        // Although the policy should prevent most failures,
+        // there might be a case where detach fails for some unexpected reason.
+        return response()->json(['message' => __('Failed to leave the project.')], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
 }
