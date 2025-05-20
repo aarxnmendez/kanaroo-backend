@@ -58,10 +58,6 @@ class TagRepository implements TagRepositoryInterface
     public function update(Tag $tag, array $data): Tag
     {
         try {
-            // Prevent modification of project_id for an existing tag
-            if (isset($data['project_id'])) {
-                unset($data['project_id']);
-            }
             $tag->update($data);
             return $tag;
         } catch (Exception $e) {

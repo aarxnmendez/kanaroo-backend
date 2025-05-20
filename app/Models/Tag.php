@@ -18,8 +18,8 @@ class Tag extends Model
      */
     protected $fillable = [
         'name',
-        'color',
-        'project_id'
+        'color'
+        // project_id is set on creation via relationship and should not be mass-assignable on update.
     ];
 
     /**
