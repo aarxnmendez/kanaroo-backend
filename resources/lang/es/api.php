@@ -8,4 +8,8 @@ return [
         'remove_failed'         => 'No se pudo eliminar al miembro. El usuario puede no ser miembro, es el propietario del proyecto, o un administrador intentando auto-eliminarse.', // Example translation
     ],
     // Add other API specific messages here and translate them to Spanish
+    'project' => [
+        'leave_success' => 'El usuario ha abandonado el proyecto correctamente.',
+        'leave_failed'  => 'Error al intentar abandonar el proyecto.',
+    ],
 ];

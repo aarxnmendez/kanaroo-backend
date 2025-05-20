@@ -8,4 +8,8 @@ return [
         'remove_failed'         => 'Could not remove member. User may not be a member, is the project owner, or an admin attempting to self-remove.',
     ],
     // Add other API specific messages here if needed
+    'project' => [
+        'leave_success' => 'User successfully left the project.',
+        'leave_failed'  => 'Failed to leave the project.',
+    ],
 ];
