@@ -6,8 +6,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use JsonException;
-use Illuminate\Support\Facades\Log;
 
 class Section extends Model
 {
@@ -73,29 +71,22 @@ class Section extends Model
                 $q->where('tags.id', $this->filter_value);
             });
         } elseif ($this->filter_type === 'date' && $this->filter_value) {
-            try {
-                $dateFilters = $this->filter_value; // Already an array due to $casts
-
-                if ($this->filter_type === 'date' && is_array($dateFilters)) {
-                    if (isset($dateFilters['due_on'])) {
-                        $query->whereDate('due_date', $dateFilters['due_on']);
-                    } elseif (isset($dateFilters['due_between']['start']) && isset($dateFilters['due_between']['end'])) {
-                        $query->whereBetween('due_date', [$dateFilters['due_between']['start'], $dateFilters['due_between']['end']]);
-                    } elseif (isset($dateFilters['due_after'])) {
-                        $query->whereDate('due_date', '>=', $dateFilters['due_after']);
-                    } elseif (isset($dateFilters['due_before'])) {
-                        $query->whereDate('due_date', '<=', $dateFilters['due_before']);
-                    } elseif (isset($dateFilters['is_null']) && $dateFilters['is_null'] === true) {
-                        $query->whereNull('due_date');
-                    } elseif (isset($dateFilters['is_not_null']) && $dateFilters['is_not_null'] === true) {
-                        $query->whereNotNull('due_date');
-                    } elseif (isset($dateFilters['overdue']) && $dateFilters['overdue'] === true) {
-                        $query->whereDate('due_date', '<', now()->toDateString())
-                            ->whereNotIn('status', ['done', 'archived']);
-                    }
-                }
-            } catch (JsonException $e) {
-                Log::error("Error processing date filter for section {$this->id}: " . $e->getMessage());
+            $dateFilters = $this->filter_value;
+            if (isset($dateFilters['due_on'])) {
+                $query->whereDate('due_date', $dateFilters['due_on']);
+            } elseif (isset($dateFilters['due_between']['start']) && isset($dateFilters['due_between']['end'])) {
+                $query->whereBetween('due_date', [$dateFilters['due_between']['start'], $dateFilters['due_between']['end']]);
+            } elseif (isset($dateFilters['due_after'])) {
+                $query->whereDate('due_date', '>=', $dateFilters['due_after']);
+            } elseif (isset($dateFilters['due_before'])) {
+                $query->whereDate('due_date', '<=', $dateFilters['due_before']);
+            } elseif (isset($dateFilters['is_null']) && $dateFilters['is_null'] === true) {
+                $query->whereNull('due_date');
+            } elseif (isset($dateFilters['is_not_null']) && $dateFilters['is_not_null'] === true) {
+                $query->whereNotNull('due_date');
+            } elseif (isset($dateFilters['overdue']) && $dateFilters['overdue'] === true) {
+                $query->whereDate('due_date', '<', now()->toDateString())
+                    ->whereNotIn('status', ['done', 'archived']);
             }
         }
 
