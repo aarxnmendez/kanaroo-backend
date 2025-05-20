@@ -9,6 +9,12 @@ class ProjectUser extends Pivot
 {
     use HasFactory;
 
+    // Role Constants
+    public const ROLE_OWNER = 'owner';
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_EDITOR = 'editor';
+    public const ROLE_MEMBER = 'member';
+
     /**
      * Indicates if the model should be timestamped.
      *

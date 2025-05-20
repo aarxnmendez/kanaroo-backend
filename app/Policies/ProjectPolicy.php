@@ -4,16 +4,11 @@ namespace App\Policies;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\ProjectUser;
 use Illuminate\Auth\Access\Response;
 
 class ProjectPolicy
 {
-    // Roles definition (conceptual, used in logic below)
-    public const ROLE_OWNER = 'owner';
-    public const ROLE_ADMIN = 'admin';
-    public const ROLE_EDITOR = 'editor';
-    public const ROLE_MEMBER = 'member';
-
     /**
      * Determine whether the user can view any models.
      * Any authenticated user can attempt to list projects;
@@ -39,7 +34,7 @@ class ProjectPolicy
     private function getRole(User $user, Project $project): ?string
     {
         if ($user->id === $project->user_id) { // Creator is always owner
-            return self::ROLE_OWNER;
+            return ProjectUser::ROLE_OWNER;
         }
         $projectUser = $project->users()->where('user_id', $user->id)->first();
         return $projectUser ? $projectUser->pivot->role : null;
@@ -51,7 +46,7 @@ class ProjectPolicy
     public function view(User $user, Project $project): bool
     {
         $role = $this->getRole($user, $project);
-        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR, self::ROLE_MEMBER]);
+        return in_array($role, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN, ProjectUser::ROLE_EDITOR, ProjectUser::ROLE_MEMBER]);
     }
 
     /**
@@ -61,7 +56,7 @@ class ProjectPolicy
     public function update(User $user, Project $project): bool
     {
         $role = $this->getRole($user, $project);
-        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN]);
+        return in_array($role, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN]);
     }
 
     /**
@@ -70,7 +65,7 @@ class ProjectPolicy
      */
     public function delete(User $user, Project $project): bool
     {
-        return $this->getRole($user, $project) === self::ROLE_OWNER;
+        return $this->getRole($user, $project) === ProjectUser::ROLE_OWNER;
     }
 
     /**
@@ -80,7 +75,7 @@ class ProjectPolicy
     public function addMember(User $user, Project $project): bool
     {
         $role = $this->getRole($user, $project);
-        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN]);
+        return in_array($role, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN]);
     }
 
     /**
@@ -94,16 +89,16 @@ class ProjectPolicy
         $actorRole = $this->getRole($user, $project);
         $targetMemberRole = $this->getRole($memberToUpdate, $project);
 
-        if (!in_array($actorRole, [self::ROLE_OWNER, self::ROLE_ADMIN])) {
+        if (!in_array($actorRole, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN])) {
             return false; // Only owner/admin can update roles
         }
 
-        if ($memberToUpdate->id === $project->user_id && $targetMemberRole === self::ROLE_OWNER) {
+        if ($memberToUpdate->id === $project->user_id && $targetMemberRole === ProjectUser::ROLE_OWNER) {
             return false; // Cannot change role of the project owner
         }
 
         // Admins cannot change their own role to prevent self-lockout or unauthorized privilege escalation.
-        if ($actorRole === self::ROLE_ADMIN && $user->id === $memberToUpdate->id) {
+        if ($actorRole === ProjectUser::ROLE_ADMIN && $user->id === $memberToUpdate->id) {
             return false;
         }
 
@@ -121,11 +116,11 @@ class ProjectPolicy
         $actorRole = $this->getRole($user, $project);
         $targetMemberRole = $this->getRole($memberToRemove, $project);
 
-        if (!in_array($actorRole, [self::ROLE_OWNER, self::ROLE_ADMIN])) {
+        if (!in_array($actorRole, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN])) {
             return false; // Only owner/admin can remove
         }
 
-        if ($memberToRemove->id === $project->user_id && $targetMemberRole === self::ROLE_OWNER) {
+        if ($memberToRemove->id === $project->user_id && $targetMemberRole === ProjectUser::ROLE_OWNER) {
             return false; // Cannot remove the project owner
         }
 
@@ -139,6 +134,6 @@ class ProjectPolicy
     public function canManageProjectContent(User $user, Project $project): bool
     {
         $role = $this->getRole($user, $project);
-        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR]);
+        return in_array($role, [ProjectUser::ROLE_OWNER, ProjectUser::ROLE_ADMIN, ProjectUser::ROLE_EDITOR]);
     }
 }
