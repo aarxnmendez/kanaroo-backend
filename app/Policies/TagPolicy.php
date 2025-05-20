@@ -35,7 +35,7 @@ class TagPolicy
      */
     public function create(User $user, Project $project): bool
     {
-        return $user->can('update', $project);
+        return $user->can('canManageProjectContent', $project);
     }
 
     /**

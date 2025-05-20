@@ -129,11 +129,16 @@ class ProjectPolicy
             return false; // Cannot remove the project owner
         }
 
-        // Admins cannot remove themselves.
-        if ($actorRole === self::ROLE_ADMIN && $user->id === $memberToRemove->id) {
-            return false;
-        }
-
         return true;
+    }
+
+    /**
+     * Determine whether the user can manage content within the project (e.g., create items, sections, tags).
+     * Owner, Admin, or Editor can manage content.
+     */
+    public function canManageProjectContent(User $user, Project $project): bool
+    {
+        $role = $this->getRole($user, $project);
+        return in_array($role, [self::ROLE_OWNER, self::ROLE_ADMIN, self::ROLE_EDITOR]);
     }
 }

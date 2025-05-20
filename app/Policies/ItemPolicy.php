@@ -32,7 +32,7 @@ class ItemPolicy
      */
     public function create(User $user, Section $section): bool
     {
-        return $user->can('update', $section->project);
+        return $user->can('canManageProjectContent', $section->project);
     }
 
     /**
