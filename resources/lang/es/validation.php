@@ -279,4 +279,54 @@ return [
         'work'                     => 'trabajo',
         'year'                     => 'año',
     ],
+    /*
+    |--------------------------------------------------------------------------
+    | Validation Language Lines (Spanish - Placeholders, needs translation)
+    |--------------------------------------------------------------------------
+    */
+    'project' => [
+        'name_required' => 'El nombre del proyecto es obligatorio.',
+        'name_max' => 'El nombre del proyecto no puede tener más de :max caracteres.',
+        'name_unique' => 'Ya existe un proyecto con este nombre para tu cuenta.',
+    ],
+    'project_member' => [
+        'user_id_required' => 'El ID de usuario es obligatorio para añadir un miembro.',
+        'user_id_integer'  => 'El ID de usuario debe ser un número entero.',
+        'user_id_exists'   => 'El usuario seleccionado no existe.',
+        'role_required'    => 'El rol es obligatorio para el miembro del proyecto.',
+        'role_string'      => 'El rol debe ser una cadena de texto.',
+        'role_in'          => 'El rol seleccionado no es válido. Los roles válidos son: admin, editor, member.',
+    ],
+    'section' => [
+        'filter_value_json' => 'El criterio de filtro de fecha debe ser una cadena JSON válida.',
+        'filter_value_tag_exists' => 'La etiqueta seleccionada para el filtro no es válida o no existe.',
+        'filter_value_user_exists' => 'El usuario seleccionado para el filtro no es válido o no existe.',
+    ],
+    'item' => [
+        'title_required' => 'El título del ítem es obligatorio.',
+        'due_date_format' => 'La fecha de entrega no coincide con el formato Y-m-d.',
+        'priority_in' => 'Prioridad seleccionada no válida. Las opciones válidas son: baja, media, alta, urgente.',
+        'status_in' => 'Estado seleccionado no válido. Las opciones válidas son: por hacer, en progreso, hecho, bloqueado, archivado.',
+        'assigned_to_exists' => 'El usuario asignado al ítem no existe.',
+        'tag_ids_array' => 'Los IDs de etiqueta deben ser un array.',
+        'tag_id_integer' => 'Cada ID de etiqueta debe ser un número entero.',
+        'tag_id_exists' => 'Una o más etiquetas seleccionadas no son válidas o no existen para este proyecto.',
+    ],
+    'tag' => [
+        'name_required'        => 'El nombre de la etiqueta es obligatorio.',
+        'name_unique_project'  => 'Este nombre de etiqueta ya existe para este proyecto.',
+        'color_regex'          => 'El color debe ser un código hexadecimal válido (ej., #RRGGBB).',
+    ],
+    'reorder' => [
+        'item_ids_required' => 'La lista de IDs de ítems es obligatoria para reordenar.',
+        'item_ids_array'    => 'Los IDs de ítems se deben proporcionar como un array.',
+        'item_id_required'  => 'Cada ID de ítem en la lista es obligatorio.',
+        'item_id_integer'   => 'Cada ID de ítem debe ser un número entero.',
+        'item_id_exists'    => 'Uno o más IDs de ítems no son válidos o no pertenecen a la sección especificada.',
+        'section_ids_required' => 'La lista de IDs de sección es obligatoria para reordenar.',
+        'section_ids_array'    => 'Los IDs de sección se deben proporcionar como un array.',
+        'section_id_required'  => 'Cada ID de sección en la lista es obligatorio.',
+        'section_id_integer'   => 'Cada ID de sección debe ser un número entero.',
+        'section_id_exists'    => 'Uno o más IDs de sección no son válidos o no pertenecen al proyecto.',
+    ],
 ];
