@@ -42,6 +42,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('projects/{project}/members/{user}', [ProjectController::class, 'updateMemberRole'])->name('projects.members.updateRole');
     Route::delete('projects/{project}/members/{user}', [ProjectController::class, 'removeMember'])->name('projects.members.remove');
     Route::delete('projects/{project}/leave', [ProjectController::class, 'leave'])->name('projects.leave');
+    Route::post('projects/{project}/transfer-ownership', [ProjectController::class, 'transferOwnership'])->name('projects.transferOwnership');
 
     // Sections routes
     Route::apiResource('projects.sections', SectionController::class)->shallow();

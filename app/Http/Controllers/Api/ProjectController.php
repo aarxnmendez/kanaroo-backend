@@ -14,6 +14,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Http\Requests\Projects\AddProjectMemberRequest;
 use App\Http\Requests\Projects\UpdateProjectMemberRoleRequest;
+use App\Http\Requests\Api\TransferOwnershipRequest; // <-- Añadido
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
@@ -169,5 +170,33 @@ class ProjectController extends Controller
         // Although the policy should prevent most failures,
         // there might be a case where detach fails for some unexpected reason.
         return response()->json(['message' => __('api.project.leave_failed')], Response::HTTP_INTERNAL_SERVER_ERROR);
+    }
+
+    /**
+     * Transfer ownership of a project to another user.
+     * POST /projects/{project}/transfer-ownership
+     */
+    public function transferOwnership(TransferOwnershipRequest $request, Project $project): JsonResponse
+    {
+        $this->authorize('transferOwnership', $project);
+
+        $validatedData = $request->validated();
+        $newOwnerId = $validatedData['new_owner_id'];
+
+        try {
+            $updatedProject = $this->projectRepository->transferOwnership($project, $newOwnerId);
+            // Ensure relationships are loaded for the response
+            $projectWithRelations = $this->projectRepository->loadRelationships($updatedProject->fresh()); 
+            return response()->json(
+                [
+                    'message' => __('api.transfer_ownership.success'),
+                    'project' => new ProjectResource($projectWithRelations)
+                ],
+                Response::HTTP_OK
+            );
+        } catch (\Exception $e) {
+            // Log::error("Error transferring project ownership for project ID {$project->id}: {$e->getMessage()}"); // Optional: Keep or remove logging as per preference
+            return response()->json(['message' => __('api.transfer_ownership.failed')], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 }

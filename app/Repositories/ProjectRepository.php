@@ -7,6 +7,8 @@ use App\Models\ProjectUser; // Added for ROLE_ constants
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB; // Para transacciones
+use App\Models\User; // Para buscar el nuevo propietario
 use Exception;
 
 class ProjectRepository implements ProjectRepositoryInterface
@@ -192,6 +194,51 @@ class ProjectRepository implements ProjectRepositoryInterface
         } catch (Exception $e) {
             Log::error("Error detaching user {$userId} from project {$project->id}: " . $e->getMessage());
             throw $e; // Or return false if you don't want to rethrow
+        }
+    }
+
+    /**
+     * Transfers ownership of a project to a new user and updates roles.
+     *
+     * @param Project $project The project whose ownership will be transferred.
+     * @param int $newOwnerId The ID of the user who will be the new owner.
+     * @return Project The updated project after ownership transfer.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the new owner is not found.
+     * @throws \Exception If any other error occurs during the transaction.
+     */
+    public function transferOwnership(Project $project, int $newOwnerId): Project
+    {
+        DB::beginTransaction();
+        try {
+            $newOwner = User::findOrFail($newOwnerId); // Ensure the new owner exists
+
+            $oldOwnerId = $project->user_id;
+
+            // 1. Update the project owner
+            $project->user_id = $newOwner->id;
+            $project->save();
+
+            // 2. Update the new owner's role to 'owner' in the pivot table
+            // First, ensure the user is attached, then update.
+            // If already a member, updateExistingPivot. If not (edge case, validation failed), attach.
+            if ($project->users()->where('user_id', $newOwner->id)->exists()) {
+                $project->users()->updateExistingPivot($newOwner->id, ['role' => ProjectUser::ROLE_OWNER]);
+            } else {
+                // This shouldn't happen if FormRequest validation works, but as a safeguard.
+                $project->users()->attach($newOwner->id, ['role' => ProjectUser::ROLE_OWNER]);
+            }
+
+            // 3. Update the old owner's role to 'admin' (if still a member)
+            if ($oldOwnerId !== $newOwner->id && $project->users()->where('user_id', $oldOwnerId)->exists()) {
+                $project->users()->updateExistingPivot($oldOwnerId, ['role' => ProjectUser::ROLE_ADMIN]);
+            }
+
+            DB::commit();
+            return $this->loadRelationships($project->fresh());
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error("Error transferring ownership for project {$project->id} to user {$newOwnerId}: " . $e->getMessage());
+            throw $e;
         }
     }
 }

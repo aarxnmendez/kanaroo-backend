@@ -145,6 +145,15 @@ class ProjectPolicy
     }
 
     /**
+     * Determine whether the user can transfer ownership of the project.
+     * Only the current project owner can transfer ownership.
+     */
+    public function transferOwnership(User $user, Project $project): bool
+    {
+        return $user->id === $project->user_id;
+    }
+
+    /**
      * Determine whether the user can manage content within the project (e.g., create items, sections, tags).
      * Owner, Admin, or Editor can manage content.
      */
