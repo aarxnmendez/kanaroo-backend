@@ -74,11 +74,9 @@ class Section extends Model
             });
         } elseif ($this->filter_type === 'date' && $this->filter_value) {
             try {
-                // Ensure $this->filter_value is a string before decoding
-                // $casts property now handles decoding of filter_value to array automatically if it's JSON
                 $dateFilters = $this->filter_value; // Already an array due to $casts
 
-                if ($this->filter_type === 'date' && is_array($dateFilters)) { // Check if it is an array after casting
+                if ($this->filter_type === 'date' && is_array($dateFilters)) {
                     if (isset($dateFilters['due_on'])) {
                         $query->whereDate('due_date', $dateFilters['due_on']);
                     } elseif (isset($dateFilters['due_between']['start']) && isset($dateFilters['due_between']['end'])) {
@@ -96,16 +94,17 @@ class Section extends Model
                             ->whereNotIn('status', ['done', 'archived']);
                     }
                 }
-            } catch (JsonException $e) { // This catch might be less relevant if $casts handles initial JSON issues
+            } catch (JsonException $e) {
                 Log::error("Error processing date filter for section {$this->id}: " . $e->getMessage());
             }
         }
 
-        // Apply item limit if set
-        if ($this->item_limit && $this->item_limit > 0) {
-            $query->limit($this->item_limit);
-        }
+        // DO NOT apply limit or order here if repo will handle it
+        // if ($this->item_limit && $this->item_limit > 0) {
+        //     $query->limit($this->item_limit);
+        // }
+        // return $query->orderBy('position'); 
 
-        return $query->orderBy('position');
+        return $query; // Return the Eloquent Builder
     }
 }
