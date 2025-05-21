@@ -74,4 +74,10 @@ interface ProjectRepositoryInterface
      * Orders by creation date descending.
      */
     public function getUserProjectList(int $userId, int $perPage = 15): LengthAwarePaginator;
+
+    /**
+     * Get a project by its ID with all its related details (owner, members, sections with items, items with their user, assignee, and tags).
+     * Sections and items are ordered by their 'position' attribute.
+     */
+    public function getProjectWithAllDetails(int $projectId): ?Project;
 }

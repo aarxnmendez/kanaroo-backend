@@ -26,7 +26,9 @@ class ProjectController extends Controller
     protected ProjectRepositoryInterface $projectRepository;
 
     /**
-     * Constructor with dependency injection
+     * ProjectController constructor.
+     *
+     * @param ProjectRepositoryInterface $projectRepository
      */
     public function __construct(ProjectRepositoryInterface $projectRepository)
     {
@@ -48,10 +50,8 @@ class ProjectController extends Controller
      */
     public function store(StoreProjectRequest $request): ProjectResource
     {
-        // Check authorization using policy
         $this->authorize('create', Project::class);
 
-        // Get validated data and create project
         $project = $this->projectRepository->create(
             $request->validated(), // This only gets validated data, not authorization
             Auth::id()
@@ -63,14 +63,22 @@ class ProjectController extends Controller
     /**
      * Display the specified project.
      */
-    public function show(Project $project): ProjectResource
+    public function show(Project $project): ProjectResource // Route model binding finds the project
     {
-        // Check authorization using policy
         $this->authorize('view', $project);
 
-        // Ensure all necessary relationships are loaded for the resource.
-        $projectWithRelations = $this->projectRepository->loadRelationships($project);
-        return new ProjectResource($projectWithRelations);
+        // We use $project->id from the route model bound instance.
+        $projectWithDetails = $this->projectRepository->getProjectWithAllDetails($project->id);
+
+        // Route model binding typically ensures $project exists, but the repository method could return null.
+        if (!$projectWithDetails) {
+            // This case should ideally not be hit if route model binding works
+            // and the project exists. A global ModelNotFoundException handler is preferred.
+            // Using abort() for now, which triggers the framework's default 404 response.
+            abort(Response::HTTP_NOT_FOUND, __('api.project.not_found'));
+        }
+
+        return new ProjectResource($projectWithDetails);
     }
 
     /**
@@ -78,10 +86,8 @@ class ProjectController extends Controller
      */
     public function update(UpdateProjectRequest $request, Project $project): ProjectResource
     {
-        // Check authorization using policy
         $this->authorize('update', $project);
 
-        // Update with validated data
         $updatedProject = $this->projectRepository->update($project, $request->validated());
         return new ProjectResource($updatedProject);
     }
@@ -91,7 +97,6 @@ class ProjectController extends Controller
      */
     public function destroy(Project $project): Response
     {
-        // Check authorization using policy
         $this->authorize('delete', $project);
 
         $this->projectRepository->delete($project);
@@ -110,7 +115,6 @@ class ProjectController extends Controller
         $result = $this->projectRepository->addMember($project, $validatedData['user_id'], $validatedData['role']);
 
         if ($result) {
-            // Reload the project with updated members to return in response
             $projectWithRelations = $this->projectRepository->loadRelationships($project->fresh());
             return response()->json(new ProjectResource($projectWithRelations), Response::HTTP_OK);
         }
@@ -186,7 +190,6 @@ class ProjectController extends Controller
 
         try {
             $updatedProject = $this->projectRepository->transferOwnership($project, $newOwnerId);
-            // Ensure relationships are loaded for the response
             $projectWithRelations = $this->projectRepository->loadRelationships($updatedProject->fresh()); 
             return response()->json(
                 [

@@ -262,4 +262,30 @@ class ProjectRepository implements ProjectRepositoryInterface
             throw $e;
         }
     }
+
+    /**
+     * Get a project by its ID with all its related details (owner, members, sections with items, items with their user, assignee, and tags).
+     * Sections and items are ordered by their 'position' attribute.
+     */
+    public function getProjectWithAllDetails(int $projectId): ?Project
+    {
+        try {
+            return Project::with([
+                'user',
+                'users',
+                'sections' => function ($query) {
+                    $query->orderBy('position', 'asc');
+                },
+                'sections.items' => function ($query) {
+                    $query->orderBy('position', 'asc');
+                },
+                'sections.items.user',
+                'sections.items.assignee',
+                'sections.items.tags'
+            ])->find($projectId);
+        } catch (Exception $e) {
+            Log::error("Error fetching project with all details for project ID {$projectId}: " . $e->getMessage());
+            throw $e;
+        }
+    }
 }
