@@ -18,6 +18,7 @@ return [
     ],
     // Add other API specific messages here and translate them to Spanish
     'project' => [
+        'not_found'     => 'Proyecto no encontrado.',
         'leave_success' => 'El usuario ha abandonado el proyecto correctamente.',
         'leave_failed'  => 'Error al intentar abandonar el proyecto.',
     ],

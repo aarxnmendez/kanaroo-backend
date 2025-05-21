@@ -18,6 +18,7 @@ return [
     ],
     // Add other API specific messages here if needed
     'project' => [
+        'not_found'     => 'Project not found.',
         'leave_success' => 'User successfully left the project.',
         'leave_failed'  => 'Failed to leave the project.',
     ],

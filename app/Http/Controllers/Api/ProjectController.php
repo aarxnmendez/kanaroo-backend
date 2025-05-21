@@ -53,7 +53,7 @@ class ProjectController extends Controller
         $this->authorize('create', Project::class);
 
         $project = $this->projectRepository->create(
-            $request->validated(), // This only gets validated data, not authorization
+            $request->validated(),
             Auth::id()
         );
 
@@ -63,18 +63,13 @@ class ProjectController extends Controller
     /**
      * Display the specified project.
      */
-    public function show(Project $project): ProjectResource // Route model binding finds the project
+    public function show(Project $project): ProjectResource
     {
         $this->authorize('view', $project);
 
-        // We use $project->id from the route model bound instance.
         $projectWithDetails = $this->projectRepository->getProjectWithAllDetails($project->id);
 
-        // Route model binding typically ensures $project exists, but the repository method could return null.
         if (!$projectWithDetails) {
-            // This case should ideally not be hit if route model binding works
-            // and the project exists. A global ModelNotFoundException handler is preferred.
-            // Using abort() for now, which triggers the framework's default 404 response.
             abort(Response::HTTP_NOT_FOUND, __('api.project.not_found'));
         }
 
@@ -100,7 +95,7 @@ class ProjectController extends Controller
         $this->authorize('delete', $project);
 
         $this->projectRepository->delete($project);
-        return response()->noContent(); // Return 204 No Content for successful deletion.
+        return response()->noContent();
     }
 
     /**
