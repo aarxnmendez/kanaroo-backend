@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Http\Resources\ProjectResource;
+use App\Http\Resources\Api\ProjectListResource;
 use App\Models\Project;
 use App\Repositories\ProjectRepositoryInterface;
 use Illuminate\Support\Facades\Auth;
@@ -14,7 +15,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use App\Http\Requests\Projects\AddProjectMemberRequest;
 use App\Http\Requests\Projects\UpdateProjectMemberRoleRequest;
-use App\Http\Requests\Api\TransferOwnershipRequest; // <-- Añadido
+use App\Http\Requests\Api\TransferOwnershipRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
@@ -38,8 +39,8 @@ class ProjectController extends Controller
     public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Project::class);
-        $projects = $this->projectRepository->getAllForUser(Auth::id());
-        return ProjectResource::collection($projects);
+        $projects = $this->projectRepository->getUserProjectList(Auth::id());
+        return ProjectListResource::collection($projects);
     }
 
     /**

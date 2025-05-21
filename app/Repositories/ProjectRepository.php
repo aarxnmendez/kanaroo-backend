@@ -241,4 +241,25 @@ class ProjectRepository implements ProjectRepositoryInterface
             throw $e;
         }
     }
+
+    /**
+     * Get a paginated list of projects (id, name) for a specific user.
+     * Orders by creation date descending.
+     */
+    public function getUserProjectList(int $userId, int $perPage = 15): LengthAwarePaginator
+    {
+        try {
+            // Select only 'id', 'name', and fields necessary for query logic (user_id, created_at)
+            return Project::select(['id', 'name', 'user_id', 'created_at'])
+                ->where('user_id', $userId)
+                ->orWhereHas('users', function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+        } catch (Exception $e) {
+            Log::error('Error fetching user project list: ' . $e->getMessage());
+            throw $e;
+        }
+    }
 }

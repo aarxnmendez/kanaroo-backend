@@ -68,4 +68,10 @@ interface ProjectRepositoryInterface
      * @throws \Exception Si ocurre algún otro error durante la transacción.
      */
     public function transferOwnership(Project $project, int $newOwnerId): Project;
+
+    /**
+     * Get a paginated list of projects (id, name) for a specific user.
+     * Orders by creation date descending.
+     */
+    public function getUserProjectList(int $userId, int $perPage = 15): LengthAwarePaginator;
 }
