@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Auth\Notifications\VerifyEmail;
 
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -83,5 +84,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function assignedItems(): HasMany
     {
         return $this->hasMany(Item::class, 'assigned_to');
+    }
+
+    /**
+     * Send the email verification notification.
+     *
+     * @return void
+     */
+    public function sendEmailVerificationNotification()
+    {
+        // Send the default email verification notification.
+        $this->notify(new VerifyEmail);
     }
 }
