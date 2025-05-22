@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Models\Project;
 
 class UpdateProjectRequest extends FormRequest
 {
@@ -15,7 +16,13 @@ class UpdateProjectRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // Allow the request to be processed
+        $project = $this->route('project');
+
+        if (!$project instanceof Project || !$this->user()) {
+            return false;
+        }
+
+        return $this->user()->can('update', $project);
     }
 
     /**
