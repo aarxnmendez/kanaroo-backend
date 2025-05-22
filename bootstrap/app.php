@@ -39,7 +39,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $message = match (true) {
                     $e instanceof \Illuminate\Validation\ValidationException => __('errors.invalid_data'),
                     $e instanceof \Illuminate\Auth\AuthenticationException => __('errors.unauthenticated'),
-                    $e instanceof \Illuminate\Auth\Access\AuthorizationException => __('errors.unauthorized'),
+                    $e instanceof \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException => __('errors.unauthorized'),
                     $e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException => __('errors.resource_not_found'),
                     $e instanceof \Symfony\Component\HttpKernel\Exception\HttpException => $e->getMessage() ?: __('errors.http_error'),
                     default => config('app.debug') ? $e->getMessage() : __('errors.server_error'),

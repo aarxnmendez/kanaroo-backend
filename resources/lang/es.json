@@ -72,6 +72,7 @@
     "Environment file already exists.": "El archivo de entorno ya existe.",
     "Environment file not found.": "Archivo de entorno no encontrado.",
     "errors": "errores",
+    "errors.unauthorized": "No tienes permiso para realizar esta acción.",
     "Expand": "Expandir",
     "Expand All": "Expandir todo",
     "Expectation Failed": "Expectativa fallida",
