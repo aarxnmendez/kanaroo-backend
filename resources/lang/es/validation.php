@@ -279,6 +279,11 @@ return [
         'work'                     => 'trabajo',
         'year'                     => 'año',
     ],
+    'custom' => [
+        'email' => [
+            'unique' => 'Ya existe una cuenta con ese correo electrónico.',
+        ],
+    ],
     /*
     |--------------------------------------------------------------------------
     | Validation Language Lines (Spanish - Placeholders, needs translation)
