@@ -19,32 +19,33 @@ class ItemSeeder extends Seeder
         $users = User::all();
 
         if ($sections->isEmpty() || $users->isEmpty()) {
-            // If there are no sections or users, we can't create items.
-            // Optionally, log a message or handle this case as needed.
-            // $this->command->info('No sections or users found, skipping ItemSeeder.');
             return;
         }
 
+        $validItemStatuses = ['todo', 'in_progress', 'done', 'blocked', 'archived'];
+
         foreach ($sections as $section) {
             // Create a random number of items for each section (e.g., 2 to 5)
-            $numberOfItems = rand(2, 5); 
+            $numberOfItems = rand(2, 5);
+
+            $itemStatusForSection = $section->filter_value && in_array($section->filter_value, $validItemStatuses)
+                ? $section->filter_value
+                : 'todo';
 
             for ($i = 0; $i < $numberOfItems; $i++) {
                 $creator = $users->random();
                 $assignee = null;
 
-                // Decide if the item should have an assignee
-                // For example, 70% chance of having an assignee
-                if (rand(1, 10) <= 7) { 
+                if (rand(1, 10) <= 7) {
                     $assignee = $users->random();
                 }
 
                 Item::factory()->create([
                     'section_id' => $section->id,
-                    'user_id' => $creator->id,          // Creator of the item
-                    'assigned_to' => $assignee ? $assignee->id : null, // Assignee (can be null)
-                    'position' => $i + 1,               // Position within the section
-                    // Title, description, due_date, priority, is_completed will be handled by ItemFactory
+                    'user_id' => $creator->id,
+                    'assigned_to' => $assignee ? $assignee->id : null,
+                    'position' => $i + 1,
+                    'status' => $itemStatusForSection,
                 ]);
             }
         }

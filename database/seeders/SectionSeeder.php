@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\Project; // Import Project model
-use App\Models\Section; // Import Section model
+use App\Models\Project;
+use App\Models\Section;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class SectionSeeder extends Seeder
 {
@@ -14,20 +15,27 @@ class SectionSeeder extends Seeder
      */
     public function run(): void
     {
-        // Default section names
-        $defaultSectionNames = ['To Do', 'In Progress', 'Done'];
+        $defaultSections = [
+            ['name' => 'Pendiente', 'filter_value' => 'todo'],
+            ['name' => 'En Progreso', 'filter_value' => 'in_progress'],
+            ['name' => 'Hecho', 'filter_value' => 'done'],
+            ['name' => 'Bloqueado', 'filter_value' => 'blocked'],
+            ['name' => 'Archivado', 'filter_value' => 'archived'],
+        ];
 
-        // Get all projects
         $projects = Project::all();
 
+        if ($projects->isEmpty()) {
+            return;
+        }
+
         foreach ($projects as $project) {
-            foreach ($defaultSectionNames as $index => $sectionName) {
+            foreach ($defaultSections as $index => $sectionData) {
                 Section::factory()->create([
                     'project_id' => $project->id,
-                    'name' => $sectionName,
-                    'position' => $index + 1, // Set position starting from 1
-                    // 'description' => 'Default description for ' . $sectionName, // Optional
-                    // 'filter_value' => strtolower(str_replace(' ', '_', $sectionName)), // Optional, if you use filter_value
+                    'name' => $sectionData['name'],
+                    'position' => $index + 1,
+                    'filter_value' => $sectionData['filter_value'],
                 ]);
             }
         }
