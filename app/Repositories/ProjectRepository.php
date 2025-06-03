@@ -4,6 +4,7 @@ namespace App\Repositories;
 
 use App\Models\Project;
 use App\Models\ProjectUser; // Added for ROLE_ constants
+use App\Models\Section; // For creating default sections
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
@@ -40,13 +41,27 @@ class ProjectRepository implements ProjectRepositoryInterface
     public function create(array $data, int $userId): Project
     {
         try {
-            $projectData = $data; // $data is $request->validated()
-            $projectData['user_id'] = $userId; // Assign the creator
+            $project = DB::transaction(function () use ($data, $userId) {
+                $projectData = $data;
+                $projectData['user_id'] = $userId;
 
-            // Project::create will use fields in $projectData that are in Project model's $fillable
-            $project = Project::create($projectData);
+                $createdProject = Project::create($projectData);
 
-            $project->users()->attach($userId, ['role' => ProjectUser::ROLE_OWNER]);
+                $createdProject->users()->attach($userId, ['role' => ProjectUser::ROLE_OWNER]);
+
+                $defaultSections = [
+                    ['name' => 'Pendiente', 'filter_value' => 'todo', 'position' => 1, 'filter_type' => 'status'],
+                    ['name' => 'En Progreso', 'filter_value' => 'in_progress', 'position' => 2, 'filter_type' => 'status'],
+                    ['name' => 'Hecho', 'filter_value' => 'done', 'position' => 3, 'filter_type' => 'status'],
+                ];
+
+                foreach ($defaultSections as $sectionData) {
+                    Section::create(array_merge($sectionData, ['project_id' => $createdProject->id]));
+                }
+                
+                return $createdProject;
+            });
+
             return $this->loadRelationships($project);
         } catch (Exception $e) {
             Log::error('Error creating project: ' . $e->getMessage());
