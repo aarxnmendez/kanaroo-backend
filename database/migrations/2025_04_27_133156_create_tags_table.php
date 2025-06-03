@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('tags', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('color')->default('#6B7280');
+            $table->string('color', 7)->default('#6B7280');
             $table->foreignId('project_id')->constrained()->onDelete('cascade');
             $table->timestamps();
 

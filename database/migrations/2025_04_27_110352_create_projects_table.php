@@ -15,6 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->text('description')->nullable();
+            $table->enum('status', ['active', 'archived', 'on_hold', 'completed'])->default('active');
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
+            $table->string('color', 7)->nullable()->comment('Hex color code, e.g., #RRGGBB');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->timestamps();
 

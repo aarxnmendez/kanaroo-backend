@@ -15,13 +15,15 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
+            $table->date('start_date')->nullable();
             $table->date('due_date')->nullable();
             $table->integer('position');
             $table->enum('status', ['todo', 'in_progress', 'done', 'blocked', 'archived'])->default('todo');
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
+            $table->timestamp('completed_at')->nullable();
             $table->foreignId('section_id')->constrained()->onDelete('cascade');
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // Creador del item
+            $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null'); // Usuario asignado al item
             $table->timestamps();
         });
     }
