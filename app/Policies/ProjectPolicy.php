@@ -124,6 +124,11 @@ class ProjectPolicy
             return false; // Cannot remove the project owner
         }
 
+        // Admins cannot remove themselves. This should be done by the owner or another admin.
+        if ($actorRole === ProjectUser::ROLE_ADMIN && $user->id === $memberToRemove->id) {
+            return false;
+        }
+
         return true;
     }
 
