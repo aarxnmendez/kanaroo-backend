@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+
+use Illuminate\Foundation\Http\FormRequest;
 
 class StoreItemRequest extends FormRequest
 {
@@ -36,7 +37,13 @@ class StoreItemRequest extends FormRequest
             // It will be passed to the repository method from the controller.
             'assigned_to' => 'nullable|integer|exists:users,id', // Ensure user exists
             'tag_ids' => 'nullable|array',
-            'tag_ids.*' => 'integer|exists:tags,id' // Ensure all tag_ids are integers and exist in tags table
+            'tag_ids.*' => [
+                'integer',
+                Rule::exists('tags', 'id')->where(function ($query) {
+                    // Ensure the tag belongs to the same project as the section the item is being created in.
+                    $query->where('project_id', $this->route('section')->project_id);
+                })
+            ] // Ensure all tag_ids are integers and exist in tags table
         ];
     }
 
