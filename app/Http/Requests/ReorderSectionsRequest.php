@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Validation\Rule;
+
 use Illuminate\Foundation\Http\FormRequest;
 
 class ReorderSectionsRequest extends FormRequest
@@ -23,7 +25,14 @@ class ReorderSectionsRequest extends FormRequest
     {
         return [
             'ordered_ids' => ['required', 'array'],
-            'ordered_ids.*' => ['required', 'integer', 'exists:sections,id'],
+            'ordered_ids.*' => [
+                'required',
+                'integer',
+                Rule::exists('sections', 'id')->where(function ($query) {
+                    // Ensure the section belongs to the project being reordered.
+                    $query->where('project_id', $this->route('project')->id);
+                }),
+            ],
         ];
     }
 
