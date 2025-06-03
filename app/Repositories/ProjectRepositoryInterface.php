@@ -59,13 +59,13 @@ interface ProjectRepositoryInterface
     public function userLeaveProject(Project $project, int $userId): bool;
 
     /**
-     * Transfiere la propiedad de un proyecto a un nuevo usuario y actualiza los roles.
+     * Transfers ownership of a project to a new user and updates roles.
      *
-     * @param Project $project El proyecto cuya propiedad se transferirá.
-     * @param int $newOwnerId El ID del usuario que será el nuevo propietario.
-     * @return Project El proyecto actualizado después de la transferencia de propiedad.
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException Si el nuevo propietario no se encuentra.
-     * @throws \Exception Si ocurre algún otro error durante la transacción.
+     * @param Project $project The project whose ownership will be transferred.
+     * @param int $newOwnerId The ID of the user who will be the new owner.
+     * @return Project The updated project after ownership transfer.
+     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the new owner is not found.
+     * @throws \Exception If any other error occurs during the transaction.
      */
     public function transferOwnership(Project $project, int $newOwnerId): Project;
 

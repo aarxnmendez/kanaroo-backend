@@ -3,33 +3,34 @@
 namespace App\Repositories;
 
 use App\Models\Project;
-use App\Models\ProjectUser; // Added for ROLE_ constants
-use App\Models\Section; // For creating default sections
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB; // Para transacciones
-use App\Models\User; // Para buscar el nuevo propietario
+use App\Models\ProjectUser;
+use App\Models\Section;
+use App\Models\User;
 use Exception;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
-class ProjectRepository implements ProjectRepositoryInterface
+class ProjectRepository
 {
     /**
      * Get all projects for a specific user with pagination.
      * Orders by creation date descending.
+     * Includes projects owned by the user or where the user is a member.
      */
     public function getAllForUser(int $userId, int $perPage = 15): LengthAwarePaginator
     {
         try {
             return Project::where('user_id', $userId)
-                ->orWhereHas('users', function ($query) use ($userId) {
+                ->orWhereHas('users', function (Builder $query) use ($userId) {
                     $query->where('user_id', $userId);
                 })
-                ->with(['users', 'user'])
+                ->with(['user', 'users', 'sectionsCount', 'itemsCount']) // Include basic counts
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
         } catch (Exception $e) {
-            Log::error('Error fetching user projects: ' . $e->getMessage());
+            Log::error("Error fetching projects for user {$userId}: " . $e->getMessage());
             throw $e;
         }
     }
@@ -37,6 +38,7 @@ class ProjectRepository implements ProjectRepositoryInterface
     /**
      * Create a new project.
      * Creator is automatically added as 'owner'.
+     * Default sections are created with translatable names.
      */
     public function create(array $data, int $userId): Project
     {
@@ -47,12 +49,14 @@ class ProjectRepository implements ProjectRepositoryInterface
 
                 $createdProject = Project::create($projectData);
 
+                // Add creator as owner
                 $createdProject->users()->attach($userId, ['role' => ProjectUser::ROLE_OWNER]);
 
+                // Create default sections using translatable keys
                 $defaultSections = [
-                    ['name' => 'Pendiente', 'filter_value' => 'todo', 'position' => 1, 'filter_type' => 'status'],
-                    ['name' => 'En Progreso', 'filter_value' => 'in_progress', 'position' => 2, 'filter_type' => 'status'],
-                    ['name' => 'Hecho', 'filter_value' => 'done', 'position' => 3, 'filter_type' => 'status'],
+                    ['name' => __('kanban.default_section_todo'),       'filter_type' => 'status', 'filter_value' => 'todo',        'position' => 1],
+                    ['name' => __('kanban.default_section_in_progress'),'filter_type' => 'status', 'filter_value' => 'in_progress', 'position' => 2],
+                    ['name' => __('kanban.default_section_done'),       'filter_type' => 'status', 'filter_value' => 'done',        'position' => 3],
                 ];
 
                 foreach ($defaultSections as $sectionData) {
@@ -64,33 +68,61 @@ class ProjectRepository implements ProjectRepositoryInterface
 
             return $this->loadRelationships($project);
         } catch (Exception $e) {
-            Log::error('Error creating project: ' . $e->getMessage());
+            Log::error("Error creating project for user {$userId}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Find a project by its ID, with standard relationships loaded.
+     * Find a project by its ID. For simple lookups, consider a lighter version if needed.
+     * This version fetches all details for consistency with typical project views.
      */
     public function findById(int $id): ?Project
     {
         try {
-            $project = Project::find($id);
-            return $project ? $this->loadRelationships($project) : null;
+            return $this->getProjectWithAllDetails($id);
         } catch (Exception $e) {
-            Log::error("Error finding project {$id}: " . $e->getMessage());
+            Log::error("Error finding project by ID {$id}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Update a project, with standard relationships reloaded.
+     * Get a project by its ID with all nested relationships for Kanban view.
+     * Includes: project owner, members, sections (ordered), items (ordered) with their user, assignee, tags.
+     * Also includes counts for sections and items.
+     */
+    public function getProjectWithAllDetails(int $projectId): ?Project
+    {
+        try {
+            return Project::with([
+                'user', // Project owner
+                'users', // Project members (pivot data like role included)
+                'sections' => function ($query) {
+                    $query->orderBy('position', 'asc')->with([
+                        'items' => function ($query) {
+                            $query->orderBy('position', 'asc')->with(['user', 'assignee', 'tags']); // Item creator, assignee, tags
+                        },
+                        'itemsCount' // Count of items in each section
+                    ]);
+                },
+                'sectionsCount', // Total count of sections in the project
+                'tags' // Tags directly associated with the project (distinct from item tags)
+            ])->find($projectId);
+        } catch (Exception $e) {
+            Log::error("Error fetching project with all details for ID {$projectId}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Update a project.
      */
     public function update(Project $project, array $data): Project
     {
         try {
             $project->update($data);
-            return $this->loadRelationships($project);
+            return $this->loadRelationships($project->fresh()); // Use fresh() to get updated attributes before loading relations
         } catch (Exception $e) {
             Log::error("Error updating project {$project->id}: " . $e->getMessage());
             throw $e;
@@ -99,7 +131,7 @@ class ProjectRepository implements ProjectRepositoryInterface
 
     /**
      * Delete a project.
-     * Relies on DB cascades or model events for related data.
+     * Relies on DB cascades or model events for related data cleanup.
      */
     public function delete(Project $project): bool
     {
@@ -112,13 +144,13 @@ class ProjectRepository implements ProjectRepositoryInterface
     }
 
     /**
-     * Load standard relationships for a project (creator, members, sections, counts).
+     * Load standard relationships for a project model.
+     * Includes: project owner, members, sections, and counts for sections and items.
      */
     public function loadRelationships(Project $project): Project
     {
         try {
-            return $project->loadMissing(['user', 'users', 'sections'])
-                ->loadCount(['sections', 'items']);
+            return $project->loadMissing(['user', 'users', 'sections', 'sectionsCount', 'itemsCount']);
         } catch (Exception $e) {
             Log::error("Error loading relationships for project {$project->id}: " . $e->getMessage());
             throw $e;
@@ -127,13 +159,13 @@ class ProjectRepository implements ProjectRepositoryInterface
 
     /**
      * Add a member to a project.
-     * Role validation should be handled by FormRequest.
+     * Role validation should be handled by FormRequest or service layer.
      */
     public function addMember(Project $project, int $userId, string $role): bool
     {
         try {
             if ($project->users()->where('user_id', $userId)->exists()) {
-                Log::info("Attempted to add existing member {$userId} to project {$project->id}.");
+                Log::info("Attempted to add existing member {$userId} to project {$project->id}. User already a member.");
                 return false; // User is already a member
             }
             $project->users()->attach($userId, ['role' => $role]);
@@ -146,8 +178,8 @@ class ProjectRepository implements ProjectRepositoryInterface
 
     /**
      * Update a member's role in a project.
-     * Role validation should be handled by FormRequest.
-     * Prevents changing owner's role via this method.
+     * Role validation should be handled by FormRequest or service layer.
+     * Prevents changing project owner's role via this method; use transferOwnership instead.
      */
     public function updateMemberRole(Project $project, int $userId, string $role): bool
     {
@@ -157,10 +189,12 @@ class ProjectRepository implements ProjectRepositoryInterface
                 return false; // User not a member
             }
 
+            // Prevent changing the project owner's role directly here.
             if ($project->user_id === $userId && $role !== ProjectUser::ROLE_OWNER) {
-                Log::warning("Attempt to change project owner's role via repository for project {$project->id}, user {$userId}");
-                return false;
+                Log::warning("Attempt to change project owner's role for user {$userId} in project {$project->id} via updateMemberRole. Denied.");
+                return false; // Or throw specific exception
             }
+
             $project->users()->updateExistingPivot($userId, ['role' => $role]);
             return true;
         } catch (Exception $e) {
@@ -171,15 +205,22 @@ class ProjectRepository implements ProjectRepositoryInterface
 
     /**
      * Remove a member from a project.
-     * Prevents removing the project owner.
+     * Prevents removing the project owner; use transferOwnership for that scenario.
      */
     public function removeMember(Project $project, int $userId): bool
     {
         try {
+            // Prevent removing the project owner.
             if ($project->user_id === $userId) {
-                Log::warning("Attempt to remove project owner {$userId} from project {$project->id} via repository.");
-                return false;
+                Log::warning("Attempt to remove project owner {$userId} from project {$project->id} via removeMember. Denied.");
+                return false; // Or throw specific exception
             }
+
+            if (!$project->users()->where('user_id', $userId)->exists()) {
+                Log::info("Attempted to remove non-member {$userId} from project {$project->id}.");
+                return false; // User not a member, or already removed
+            }
+
             $detachedCount = $project->users()->detach($userId);
             return $detachedCount > 0;
         } catch (Exception $e) {
@@ -190,117 +231,92 @@ class ProjectRepository implements ProjectRepositoryInterface
 
     /**
      * Allows a user to leave a project.
-     * Detaches the user from the project's 'users' relationship.
+     * Prevents the project owner from leaving; they must transfer ownership first.
      */
     public function userLeaveProject(Project $project, int $userId): bool
     {
         try {
-            // The project owner cannot be detached via this method.
-            // This should ideally be caught by policy, but as a safeguard:
             if ($project->user_id === $userId) {
-                Log::warning("Attempt to detach project owner {$userId} from project {$project->id} via userLeaveProject method.");
-                return false;
+                Log::warning("Project owner {$userId} attempted to leave project {$project->id} without transferring ownership. Denied.");
+                return false; // Owner cannot leave, must transfer ownership
             }
-            
-            // The detach method returns the number of detached records.
-            // If > 0, it means the user was successfully detached.
+
+            if (!$project->users()->where('user_id', $userId)->exists()) {
+                Log::info("User {$userId} attempted to leave project {$project->id} but is not a member.");
+                return false; // User not a member
+            }
+
             $detachedCount = $project->users()->detach($userId);
             return $detachedCount > 0;
         } catch (Exception $e) {
-            Log::error("Error detaching user {$userId} from project {$project->id}: " . $e->getMessage());
-            throw $e; // Or return false if you don't want to rethrow
-        }
-    }
-
-    /**
-     * Transfers ownership of a project to a new user and updates roles.
-     *
-     * @param Project $project The project whose ownership will be transferred.
-     * @param int $newOwnerId The ID of the user who will be the new owner.
-     * @return Project The updated project after ownership transfer.
-     * @throws \Illuminate\Database\Eloquent\ModelNotFoundException If the new owner is not found.
-     * @throws \Exception If any other error occurs during the transaction.
-     */
-    public function transferOwnership(Project $project, int $newOwnerId): Project
-    {
-        DB::beginTransaction();
-        try {
-            $newOwner = User::findOrFail($newOwnerId); // Ensure the new owner exists
-
-            $oldOwnerId = $project->user_id;
-
-            // 1. Update the project owner
-            $project->user_id = $newOwner->id;
-            $project->save();
-
-            // 2. Update the new owner's role to 'owner' in the pivot table
-            // First, ensure the user is attached, then update.
-            // If already a member, updateExistingPivot. If not (edge case, validation failed), attach.
-            if ($project->users()->where('user_id', $newOwner->id)->exists()) {
-                $project->users()->updateExistingPivot($newOwner->id, ['role' => ProjectUser::ROLE_OWNER]);
-            } else {
-                // This shouldn't happen if FormRequest validation works, but as a safeguard.
-                $project->users()->attach($newOwner->id, ['role' => ProjectUser::ROLE_OWNER]);
-            }
-
-            // 3. Update the old owner's role to 'admin' (if still a member)
-            if ($oldOwnerId !== $newOwner->id && $project->users()->where('user_id', $oldOwnerId)->exists()) {
-                $project->users()->updateExistingPivot($oldOwnerId, ['role' => ProjectUser::ROLE_ADMIN]);
-            }
-
-            DB::commit();
-            return $this->loadRelationships($project->fresh());
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error("Error transferring ownership for project {$project->id} to user {$newOwnerId}: " . $e->getMessage());
+            Log::error("Error allowing user {$userId} to leave project {$project->id}: " . $e->getMessage());
             throw $e;
         }
     }
 
     /**
-     * Get a paginated list of projects (id, name) for a specific user.
+     * Transfers ownership of a project to a new user.
+     * The new owner must be an existing member of the project.
+     * The old owner's role is changed to 'admin'.
+     */
+    public function transferOwnership(Project $project, int $newOwnerId): Project
+    {
+        return DB::transaction(function () use ($project, $newOwnerId) {
+            try {
+                $newOwner = User::findOrFail($newOwnerId);
+                $oldOwnerId = $project->user_id;
+
+                // Ensure new owner is a member of the project (can be any role initially)
+                if (!$project->users()->where('user_id', $newOwnerId)->exists()) {
+                    Log::error("Cannot transfer ownership of project {$project->id}: New owner {$newOwnerId} is not a member.");
+                    throw new Exception("New owner must be a member of the project to transfer ownership."); // More specific exception preferred
+                }
+
+                // Update project's owner_id
+                $project->user_id = $newOwnerId;
+                $project->save();
+
+                // Update new owner's role to 'owner'
+                $project->users()->updateExistingPivot($newOwnerId, ['role' => ProjectUser::ROLE_OWNER]);
+
+                // Change old owner's role to 'admin' if they are different from the new owner
+                if ($oldOwnerId !== $newOwnerId) {
+                    if ($project->users()->where('user_id', $oldOwnerId)->exists()) {
+                        $project->users()->updateExistingPivot($oldOwnerId, ['role' => ProjectUser::ROLE_ADMIN]);
+                    } else {
+                        // This case should ideally not happen if old owner was indeed the owner.
+                        // If it does, it implies data inconsistency. Log it.
+                        Log::warning("Old owner {$oldOwnerId} was not found in project_users pivot table during ownership transfer for project {$project->id}.");
+                    }
+                }
+                
+                return $this->loadRelationships($project->fresh());
+            } catch (Exception $e) {
+                Log::error("Error transferring ownership for project {$project->id} to user {$newOwnerId}: " . $e->getMessage());
+                throw $e; // Re-throw to be caught by transaction rollback if DB::transaction is used directly
+            }
+        });
+    }
+
+    /**
+     * Get a paginated list of projects (id, name, owner name) for a specific user for dropdowns or lists.
      * Orders by creation date descending.
      */
     public function getUserProjectList(int $userId, int $perPage = 15): LengthAwarePaginator
     {
         try {
-            // Select only 'id', 'name', and fields necessary for query logic (user_id, created_at)
-            return Project::select(['id', 'name', 'user_id', 'created_at'])
-                ->where('user_id', $userId)
-                ->orWhereHas('users', function ($query) use ($userId) {
-                    $query->where('user_id', $userId);
+            return Project::select(['projects.id', 'projects.name', 'users.name as owner_name', 'projects.created_at'])
+                ->join('users', 'users.id', '=', 'projects.user_id') // Join to get owner's name
+                ->where('projects.user_id', $userId)
+                ->orWhereHas('users', function (Builder $query) use ($userId) {
+                    $query->where('users.id', $userId);
                 })
-                ->orderBy('created_at', 'desc')
+                ->orderBy('projects.created_at', 'desc')
                 ->paginate($perPage);
         } catch (Exception $e) {
-            Log::error('Error fetching user project list: ' . $e->getMessage());
-            throw $e;
-        }
-    }
-
-    /**
-     * Get a project by its ID with all its related details (owner, members, sections with items, items with their user, assignee, and tags).
-     * Sections and items are ordered by their 'position' attribute.
-     */
-    public function getProjectWithAllDetails(int $projectId): ?Project
-    {
-        try {
-            return Project::with([
-                'user',
-                'users',
-                'sections' => function ($query) {
-                    $query->orderBy('position', 'asc');
-                },
-                'sections.items' => function ($query) {
-                    $query->orderBy('position', 'asc');
-                },
-                'sections.items.user',
-                'sections.items.assignee',
-                'sections.items.tags'
-            ])->find($projectId);
-        } catch (Exception $e) {
-            Log::error("Error fetching project with all details for project ID {$projectId}: " . $e->getMessage());
+            Log::error("Error fetching user project list for user {$userId}: " . $e->getMessage());
             throw $e;
         }
     }
 }
+
