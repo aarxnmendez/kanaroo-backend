@@ -5,6 +5,9 @@ namespace App\Repositories;
 use App\Models\Item;
 use App\Models\Section;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\Project;
+use Illuminate\Http\Request;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface ItemRepositoryInterface
 {
@@ -68,4 +71,13 @@ interface ItemRepositoryInterface
      * @return void
      */
     public function syncTags(Item $item, array $tagIds): void;
+
+    /**
+     * Get filtered and paginated items for a specific project.
+     *
+     * @param  Project $project
+     * @param  Request $request // Contains query parameters for filtering and sorting
+     * @return LengthAwarePaginator<Item>
+     */
+    public function getFilteredItemsForProject(Project $project, Request $request): LengthAwarePaginator;
 }

@@ -13,6 +13,7 @@ use App\Http\Resources\ItemResource;
 use App\Repositories\ItemRepositoryInterface;
 use Illuminate\Http\Response;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Request;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 class ItemController extends Controller
@@ -97,5 +98,18 @@ class ItemController extends Controller
         $validatedData = $request->validated();
         $reorderedItems = $this->itemRepository->reorder($section, $validatedData['item_ids']);
         return ItemResource::collection($reorderedItems);
+    }
+
+    /**
+     * Display a listing of items for a specific project, with filtering.
+     * GET /projects/{project}/items
+     */
+    public function indexForProject(Project $project, Request $request): AnonymousResourceCollection
+    {
+        $this->authorize('view', $project); // User must be able to view the project to list its items
+
+        $items = $this->itemRepository->getFilteredItemsForProject($project, $request);
+
+        return ItemResource::collection($items);
     }
 }

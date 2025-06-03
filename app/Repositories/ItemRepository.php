@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\Auth; // To get the authenticated user
 use Illuminate\Support\Facades\DB; // For transactions, if needed for reorder
 use Exception; // For error handling
 use Illuminate\Support\Facades\Log; // For logging errors
+use App\Models\Project;
+use Illuminate\Http\Request;
+use Spatie\QueryBuilder\QueryBuilder;
+use Spatie\QueryBuilder\AllowedFilter;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class ItemRepository implements ItemRepositoryInterface
 {
@@ -218,5 +224,52 @@ class ItemRepository implements ItemRepositoryInterface
             Log::error("Error syncing tags for item {$item->id}: " . $e->getMessage());
             throw $e;
         }
+    }
+
+    public function getFilteredItemsForProject(Project $project, Request $request): LengthAwarePaginator
+    {
+        $defaultSort = '-created_at'; // Default sort order
+        $perPage = $request->input('per_page', 15); // Default items per page
+
+        // Base query: items belonging to the project (via sections)
+        $itemsQuery = Item::query()->whereHas('section', function (Builder $sectionQuery) use ($project) {
+            $sectionQuery->where('project_id', $project->id);
+        });
+
+        return QueryBuilder::for($itemsQuery)
+            ->allowedFilters([
+                AllowedFilter::callback('status', function (Builder $query, $value) {
+                    if (in_array($value, \App\Enums\ItemStatus::values(), true)) {
+                        $query->where('status', $value);
+                    }
+                    // Optionally log if value is invalid, for now, it's silently ignored
+                }),
+                AllowedFilter::callback('priority', function (Builder $query, $value) {
+                    if (in_array($value, \App\Enums\ItemPriority::values(), true)) {
+                        $query->where('priority', $value);
+                    }
+                }),
+                AllowedFilter::exact('assigned_to'),
+                AllowedFilter::partial('title'),
+                AllowedFilter::partial('description'),
+                AllowedFilter::callback('tags', function (Builder $query, $value) {
+                    $tagIds = is_array($value) ? $value : [$value];
+                    $tagIds = array_map('intval', array_filter($tagIds, 'is_numeric'));
+                    if (!empty($tagIds)) {
+                        // Item must have ALL specified tags (AND logic)
+                        $query->whereHas('tags', function (Builder $tagQuery) use ($tagIds) {
+                            $tagQuery->whereIn('tags.id', $tagIds);
+                        }, '=', count($tagIds));
+                    }
+                }),
+                AllowedFilter::scope('due_date_before'),
+                AllowedFilter::scope('due_date_after'),
+                AllowedFilter::exact('section_id'),
+            ])
+            ->defaultSort($defaultSort)
+            ->allowedSorts(['created_at', 'due_date', 'priority', 'status', 'title', 'position'])
+            ->with(['user', 'assignee', 'tags', 'section'])
+            ->paginate($perPage)
+            ->appends($request->query()); // Append query parameters to pagination links
     }
 }

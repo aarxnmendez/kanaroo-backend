@@ -50,6 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Items routes
     Route::apiResource('projects.sections.items', ItemController::class)->shallow();
+    Route::get('projects/{project}/items', [ItemController::class, 'indexForProject'])->name('projects.items.index');
     Route::post('projects/{project}/sections/{section}/items/reorder', [ItemController::class, 'reorder'])->name('projects.sections.items.reorder');
 
     // Tag routes

@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use App\Enums\ItemStatus;
+use App\Enums\ItemPriority;
+use Illuminate\Database\Eloquent\Builder;
 
 class Item extends Model
 {
@@ -35,6 +38,8 @@ class Item extends Model
      */
     protected $casts = [
         'due_date' => 'date',
+        'status' => ItemStatus::class,
+        'priority' => ItemPriority::class,
     ];
 
     /**
@@ -67,5 +72,21 @@ class Item extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class)->withTimestamps();
+    }
+
+    /**
+     * Scope a query to only include items due before or on a given date.
+     */
+    public function scopeDueDateBefore(Builder $query, string $date): Builder
+    {
+        return $query->where('due_date', '<=', $date);
+    }
+
+    /**
+     * Scope a query to only include items due after or on a given date.
+     */
+    public function scopeDueDateAfter(Builder $query, string $date): Builder
+    {
+        return $query->where('due_date', '>=', $date);
     }
 }
