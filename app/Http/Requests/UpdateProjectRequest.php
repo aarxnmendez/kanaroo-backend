@@ -44,7 +44,31 @@ class UpdateProjectRequest extends FormRequest
                     })
                     ->ignore($this->route('project'))
             ],
-            'description' => 'nullable|string',
+            'description' => 'sometimes|nullable|string',
+            'status' => [
+                'sometimes',
+                'string',
+                Rule::in(['active', 'archived', 'on_hold', 'completed']),
+            ],
+            'start_date' => [
+                'sometimes',
+                'nullable',
+                'date',
+                'before_or_equal:end_date'
+            ],
+            'end_date' => [
+                'sometimes',
+                'nullable',
+                'date',
+                'after_or_equal:start_date'
+            ],
+            'color' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:7',
+                'regex:/^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$/',
+            ],
         ];
     }
 

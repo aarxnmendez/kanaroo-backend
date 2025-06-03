@@ -29,6 +29,10 @@ class ProjectFactory extends Factory
             'user_id' => User::factory(),
             'name' => $this->faker->words(3, true), // e.g., "Efficient Project Management"
             'description' => $this->faker->sentence(), // e.g., "A short description for the project."
+            'status' => $this->faker->randomElement(['active', 'archived', 'on_hold', 'completed']),
+            'start_date' => $this->faker->optional(0.7)->date(),
+            'end_date' => $this->faker->optional(0.7)->date(),
+            'color' => $this->faker->optional(0.8)->hexColor(),
         ];
     }
 }

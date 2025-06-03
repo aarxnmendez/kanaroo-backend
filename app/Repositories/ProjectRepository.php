@@ -40,11 +40,11 @@ class ProjectRepository implements ProjectRepositoryInterface
     public function create(array $data, int $userId): Project
     {
         try {
-            $project = Project::create([
-                'name' => $data['name'],
-                'description' => $data['description'] ?? null,
-                'user_id' => $userId,
-            ]);
+            $projectData = $data; // $data is $request->validated()
+            $projectData['user_id'] = $userId; // Assign the creator
+
+            // Project::create will use fields in $projectData that are in Project model's $fillable
+            $project = Project::create($projectData);
 
             $project->users()->attach($userId, ['role' => ProjectUser::ROLE_OWNER]);
             return $this->loadRelationships($project);
