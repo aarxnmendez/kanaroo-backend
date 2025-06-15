@@ -7,12 +7,12 @@ use App\Models\ProjectUser;
 use App\Models\Section;
 use App\Models\User;
 use Exception;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-class ProjectRepository
+class ProjectRepository implements ProjectRepositoryInterface
 {
     /**
      * Get all projects for a specific user with pagination.
@@ -55,14 +55,14 @@ class ProjectRepository
                 // Create default sections using translatable keys
                 $defaultSections = [
                     ['name' => __('kanban.default_section_todo'),       'filter_type' => 'status', 'filter_value' => 'todo',        'position' => 1],
-                    ['name' => __('kanban.default_section_in_progress'),'filter_type' => 'status', 'filter_value' => 'in_progress', 'position' => 2],
+                    ['name' => __('kanban.default_section_in_progress'), 'filter_type' => 'status', 'filter_value' => 'in_progress', 'position' => 2],
                     ['name' => __('kanban.default_section_done'),       'filter_type' => 'status', 'filter_value' => 'done',        'position' => 3],
                 ];
 
                 foreach ($defaultSections as $sectionData) {
                     Section::create(array_merge($sectionData, ['project_id' => $createdProject->id]));
                 }
-                
+
                 return $createdProject;
             });
 
@@ -289,7 +289,7 @@ class ProjectRepository
                         Log::warning("Old owner {$oldOwnerId} was not found in project_users pivot table during ownership transfer for project {$project->id}.");
                     }
                 }
-                
+
                 return $this->loadRelationships($project->fresh());
             } catch (Exception $e) {
                 Log::error("Error transferring ownership for project {$project->id} to user {$newOwnerId}: " . $e->getMessage());
@@ -319,4 +319,3 @@ class ProjectRepository
         }
     }
 }
-
